@@ -23,7 +23,7 @@ A Tampermonkey userscript that adds an **Enrollment Management** panel to Canvas
 1. Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension.
 2. Click the link below to install the script directly:
 
-   **[Install Canvas Enrollment Manager](https://raw.githubusercontent.com/NKU-CETI/canvas-enrollment-manager/main/canvas-enrollment-manager.user.js)**
+   **[Install Canvas Enrollment Manager](https://raw.githubusercontent.com/NKU-CETI/Canvas-Enrollment-Plugin/main/canvas-enrollment-manager.user.js)**
 
    Tampermonkey will open a confirmation page — click **Install**.
 
@@ -49,6 +49,7 @@ Version numbering follows this convention:
 
 | Version | Notes |
 |---|---|
+| 1.3 | Added permission check: non-admin users see a contextual "no access" panel; fixed `@updateURL`/`@downloadURL` to point to this repository |
 | 1.2 | Fixed link validator false negative (results suppressed for up to 2 min on fast jobs); added `@updateURL`/`@downloadURL` for auto-update; added this README |
 | 1.1 | Fixed link validator stale-result false positive; added ℹ️ version tooltip; added last-run timestamp; fixed CSRF token reading; fixed HTTP 422 on bodyless POSTs |
 | 1.0 | Initial release |

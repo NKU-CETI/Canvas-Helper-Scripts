@@ -1,24 +1,25 @@
 // ==UserScript==
 // @name         Canvas Enrollment Manager
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  Adds buttons to Canvas course pages to modify your enrollment
-// @author       You
+// @author       NKU CETI
 // @match        https://*.instructure.com/courses/*
 // @grant        GM_xmlhttpRequest
 // @connect      *.instructure.com
 // @connect      status.instructure.com
-// @updateURL    https://raw.githubusercontent.com/NKU-CETI/canvas-enrollment-manager/main/canvas-enrollment-manager.user.js
-// @downloadURL  https://raw.githubusercontent.com/NKU-CETI/canvas-enrollment-manager/main/canvas-enrollment-manager.user.js
+// @updateURL    https://raw.githubusercontent.com/NKU-CETI/Canvas-Enrollment-Plugin/main/canvas-enrollment-manager.user.js
+// @downloadURL  https://raw.githubusercontent.com/NKU-CETI/Canvas-Enrollment-Plugin/main/canvas-enrollment-manager.user.js
 // ==/UserScript==
 
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.2';
+    const SCRIPT_VERSION = '1.3';
     const DEBUG = false;
     const REQUEST_TIMEOUT_MS = 15000;
     const LINK_VALIDATOR_POLL_INTERVAL_MS = 4000;
+    const NKU_DOMAINS = ['nku.instructure.com', 'nku.beta.instructure.com', 'nku.test.instructure.com'];
     // After this many polls without seeing queued/running, accept a completed result anyway.
     // This covers fast jobs that finish before the first poll can observe them in-progress.
     // 3 polls × 4 s = 12 s maximum wait before showing results.
@@ -50,10 +51,10 @@
     userId = getUserId();
 
     if (userId) {
-        // We have a user ID — fetch enrollment status and build the UI
-        fetchEnrollmentAndInit();
+        // We have a user ID — check permissions, then fetch enrollment status and build the UI
+        checkPermissionsAndProceed();
     } else {
-        // Fall back to the API to retrieve the user ID, then build the UI
+        // Fall back to the API to retrieve the user ID, then check permissions and build the UI
         fetchUserIdFromAPI();
     }
 
@@ -100,7 +101,7 @@
                         if (data && data.id) {
                             userId = data.id;
                             log('Found user ID from API:', userId);
-                            fetchEnrollmentAndInit();
+                            checkPermissionsAndProceed();
                         }
                     } catch (e) {
                         err('Error parsing user profile response', e);
@@ -112,6 +113,73 @@
             ontimeout() { err('User profile request timed out'); },
             onerror(e) { err('User profile request error', e); },
         });
+    }
+
+    // ─── Permission check ─────────────────────────────────────────────────────
+
+    // Checks whether the current user has account-admin access in Canvas, which
+    // is the minimum permission level required to manage course enrollments with
+    // this script.  If the check fails or returns no accounts, a contextual
+    // "no access" panel is shown instead of the main UI.
+    function checkPermissionsAndProceed() {
+        log('Checking account admin permissions');
+        const url = `https://${domain}/api/v1/accounts?per_page=1`;
+        makeApiCall(url, 'GET', null, getCsrfToken(),
+            (accounts) => {
+                if (Array.isArray(accounts) && accounts.length > 0) {
+                    log('User has account admin access, proceeding');
+                    fetchEnrollmentAndInit();
+                } else {
+                    log('User has no account admin access');
+                    showNoPermissionPanel();
+                }
+            },
+            (error) => {
+                log('Permission check failed:', error);
+                showNoPermissionPanel();
+            }
+        );
+    }
+
+    function showNoPermissionPanel() {
+        if (document.getElementById('enrollment-manager-container')) return;
+
+        const isNkuDomain = NKU_DOMAINS.includes(domain);
+
+        buttonContainer = document.createElement('div');
+        buttonContainer.id = 'enrollment-manager-container';
+        Object.assign(buttonContainer.style, {
+            margin: '10px 0',
+            padding: '10px',
+            backgroundColor: '#f5f5f5',
+            borderRadius: '4px',
+            border: '1px solid #ddd',
+        });
+
+        const title = document.createElement('h3');
+        title.textContent = 'Enrollment Management';
+        Object.assign(title.style, { margin: '0 0 8px 0' });
+        buttonContainer.appendChild(title);
+
+        const msg = document.createElement('p');
+        Object.assign(msg.style, { margin: '0', fontSize: '0.95em' });
+
+        if (isNkuDomain) {
+            msg.innerHTML =
+                'This script requires account admin permissions in Canvas and will not ' +
+                'work for your account. If you think you would have a use for it, please ' +
+                'email <a href="mailto:ceti@nku.edu">ceti@nku.edu</a> to inquire about access.';
+        } else {
+            msg.textContent =
+                'This script was built for Northern Kentucky University and requires ' +
+                'specific Canvas admin permissions that your account does not appear to have. ' +
+                'If it is not working for you, you will need to investigate the compatibility ' +
+                'and permission requirements on your own — this project does not provide ' +
+                'support for other institutions.';
+        }
+
+        buttonContainer.appendChild(msg);
+        insertButtonContainer();
     }
 
     // ─── Enrollment status check ──────────────────────────────────────────────
