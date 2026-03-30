@@ -760,7 +760,7 @@
         btn.textContent = 'Re-run Link Validator';
         if (saveTimestamp) saveLinkValidatorLastRun();
 
-        const issues = data.issues || [];
+        const issues = data.results?.issues || [];
         const reportUrl = `https://${domain}/courses/${courseId}/link_validator`;
 
         statusDiv.innerHTML = '';
