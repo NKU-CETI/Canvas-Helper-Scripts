@@ -65,12 +65,6 @@ Version numbering follows this convention:
 
 ---
 
-## Community Resources
-
-[**jamesjonesmath/canvancement**](https://github.com/jamesjonesmath/canvancement) — A well-maintained collection of Canvas LMS userscripts and enhancements by James Jones, a prominent contributor in the [Canvas Community](https://community.canvaslms.com). This is an excellent first stop when researching Canvas API behavior, scripting patterns, or looking for prior art on a problem. His repo is licensed under the [ISC License](https://github.com/jamesjonesmath/canvancement/blob/master/LICENSE). If any code or approach from that repository is ever incorporated here, it must be properly attributed per that license.
-
----
-
 ## Disclaimer
 
 This script was created for use by instructional design staff at **Northern Kentucky University**. It is provided as-is, without warranty. Use at your own risk. Always verify enrollment changes in Canvas directly.
