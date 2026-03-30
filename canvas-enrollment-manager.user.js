@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas Enrollment Manager
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  Adds buttons to Canvas course pages to modify your enrollment
 // @author       NKU CETI
 // @match        https://*.instructure.com/courses/*
@@ -15,7 +15,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.3';
+    const SCRIPT_VERSION = '1.4';
     const DEBUG = false;
     const REQUEST_TIMEOUT_MS = 15000;
     const LINK_VALIDATOR_POLL_INTERVAL_MS = 4000;
@@ -666,13 +666,11 @@
 
         const url = `https://${domain}/api/v1/courses/${courseId}/link_validation`;
         makeApiCall(url, 'POST', null, getCsrfToken(),
-            (postData) => {
-                // Canvas may return the completed results directly in the POST response
-                // (e.g. when the job runs synchronously for small courses).
-                if (postData?.workflow_state === 'completed') {
-                    displayLinkValidatorResults(btn, statusDiv, postData, true);
-                    return;
-                }
+            () => {
+                // Always poll after POST — the POST response may carry a stale
+                // "completed" state (empty issues) from a previous run rather than
+                // the newly-triggered job's results.  The pollLinkValidator grace-poll
+                // logic already handles jobs that finish before the first poll fires.
                 statusDiv.textContent = 'Link validation running…';
                 pollLinkValidator(btn, statusDiv, true);
             },
