@@ -1,21 +1,22 @@
 // ==UserScript==
 // @name         Canvas Enrollment Manager
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  Adds buttons to Canvas course pages to modify your enrollment
 // @author       NKU CETI
 // @match        https://*.instructure.com/courses/*
 // @grant        GM_xmlhttpRequest
 // @connect      *.instructure.com
 // @connect      status.instructure.com
-// @updateURL    https://raw.githubusercontent.com/NKU-CETI/Canvas-Enrollment-Plugin/main/canvas-enrollment-manager.user.js
-// @downloadURL  https://raw.githubusercontent.com/NKU-CETI/Canvas-Enrollment-Plugin/main/canvas-enrollment-manager.user.js
+// @connect      raw.githubusercontent.com
+// @updateURL    https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/canvas-enrollment-manager.user.js
+// @downloadURL  https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/canvas-enrollment-manager.user.js
 // ==/UserScript==
 
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.4';
+    const SCRIPT_VERSION = '1.5';
     const DEBUG = false;
     const REQUEST_TIMEOUT_MS = 15000;
     const LINK_VALIDATOR_POLL_INTERVAL_MS = 4000;
@@ -25,6 +26,10 @@
     // 3 polls × 4 s = 12 s maximum wait before showing results.
     const LINK_VALIDATOR_GRACE_POLLS = 3;
     const DESIGNER_ROLE_ID = 5; // Institution-specific role ID for the Designer role
+    const UPDATE_CHECK_URL = 'https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/canvas-enrollment-manager.user.js';
+    const VERSION_TOOLTIP_BASE = `Canvas Enrollment Manager v${SCRIPT_VERSION}\nManages course enrollment and runs health checks.\nMade for Northern Kentucky University.`;
+    const VERSION_CHECK_CACHE_KEY = 'cem_version_check';
+    const VERSION_CHECK_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
     const log = (...args) => DEBUG && console.log('Canvas Enrollment Manager:', ...args);
     const warn = (...args) => console.warn('Canvas Enrollment Manager:', ...args);
@@ -242,7 +247,7 @@
 
         const versionIcon = document.createElement('span');
         versionIcon.textContent = 'ℹ️';
-        versionIcon.title = `Canvas Enrollment Manager v${SCRIPT_VERSION}\nManages course enrollment and runs health checks.\nMade for Northern Kentucky University.`;
+        versionIcon.title = `${VERSION_TOOLTIP_BASE}\nChecking for updates…`;
         Object.assign(versionIcon.style, { fontSize: '1em', cursor: 'default' });
 
         const rightIcons = document.createElement('div');
@@ -253,6 +258,7 @@
         buttonContainer.appendChild(titleRow);
 
         fetchCanvasStatus(statusLink);
+        fetchLatestVersion(versionIcon);
 
         // Show enroll button when not enrolled (or status unknown)
         if (isEnrolled === null || !isEnrolled) {
@@ -637,6 +643,71 @@
             });
         }
         el.title = tooltip;
+    }
+
+    // ─── GitHub version check ─────────────────────────────────────────────────
+
+    function fetchLatestVersion(el) {
+        // Use a cached result if it is less than 24 hours old to avoid hitting
+        // GitHub's raw-content servers on every page load.
+        try {
+            const cached = JSON.parse(localStorage.getItem(VERSION_CHECK_CACHE_KEY) || 'null');
+            const age = Date.now() - cached?.ts;
+            if (cached && typeof cached.version === 'string' && cached.version &&
+                typeof cached.ts === 'number' && age >= 0 && age < VERSION_CHECK_TTL_MS) {
+                updateVersionTooltip(el, cached.version);
+                return;
+            }
+        } catch (_) { /* corrupt cache — fall through to a fresh fetch */ }
+
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: UPDATE_CHECK_URL,
+            timeout: REQUEST_TIMEOUT_MS,
+            onload(response) {
+                if (response.status >= 200 && response.status < 300) {
+                    const match = response.responseText.match(/\/\/\s*@version\s+([\d.]+(?:[-+][^\s]*)?)/);
+                    if (match) {
+                        const latestVersion = match[1].trim();
+                        try {
+                            localStorage.setItem(VERSION_CHECK_CACHE_KEY, JSON.stringify({ version: latestVersion, ts: Date.now() }));
+                        } catch (_) { /* storage unavailable — ignore */ }
+                        updateVersionTooltip(el, latestVersion);
+                    } else {
+                        el.title = `${VERSION_TOOLTIP_BASE}\n\nCould not determine latest version.`;
+                    }
+                } else {
+                    el.title = `${VERSION_TOOLTIP_BASE}\n\nUpdate check failed (HTTP ${response.status}).`;
+                }
+            },
+            onerror() {
+                el.title = `${VERSION_TOOLTIP_BASE}\n\nUpdate check failed (network error).`;
+            },
+            ontimeout() {
+                el.title = `${VERSION_TOOLTIP_BASE}\n\nUpdate check timed out.`;
+            },
+        });
+    }
+
+    function compareVersions(a, b) {
+        const toNums = v => v.replace(/[-+].*$/, '').split('.').map(Number);
+        const aParts = toNums(a);
+        const bParts = toNums(b);
+        const len = Math.max(aParts.length, bParts.length);
+        for (let i = 0; i < len; i++) {
+            const diff = (aParts[i] || 0) - (bParts[i] || 0);
+            if (diff !== 0) return diff;
+        }
+        return 0;
+    }
+
+    function updateVersionTooltip(el, latestVersion) {
+        if (compareVersions(latestVersion, SCRIPT_VERSION) <= 0) {
+            el.title = `${VERSION_TOOLTIP_BASE}\n\n✅ You are on the latest version.`;
+        } else {
+            el.textContent = '🔔';
+            el.title = `${VERSION_TOOLTIP_BASE}\n\n⚠️ Update available: v${latestVersion}\nOpen the Tampermonkey dashboard to update.`;
+        }
     }
 
     // ─── Link Validator ───────────────────────────────────────────────────────
