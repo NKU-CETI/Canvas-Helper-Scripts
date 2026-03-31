@@ -25,12 +25,6 @@ All scripts are Tampermonkey userscripts.
 
 ---
 
-## Community Resources
-
-- [jamesjonesmath/canvancement](https://github.com/jamesjonesmath/canvancement) — A large community collection of Canvas userscripts (ISC license). Check here for Canvas API patterns and prior art.
-
----
-
 ## Disclaimer
 
-These scripts were created for use by instructional design staff at **Northern Kentucky University**. They are provided as-is, without warranty. Use at your own risk.
+These scripts were created for use by Faculty and Staff at **Northern Kentucky University**. They are provided as-is, without warranty. Use at your own risk.
