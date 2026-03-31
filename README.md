@@ -1,69 +1,35 @@
-# Canvas Enrollment Manager
+# Canvas Helper Scripts
 
-A Tampermonkey userscript that adds an **Enrollment Management** panel to Canvas course pages, making it easy to enroll/unenroll yourself as a Designer and run course-health checks.
+A growing collection of Tampermonkey userscripts and utilities that extend the Canvas LMS for instructional design staff and administrators at **Northern Kentucky University (NKU)**.
 
-> **⚠️ Made for Northern Kentucky University (NKU)**
-> This script uses NKU-specific Canvas role IDs and has been tested against NKU's Canvas instance (`nku.instructure.com`). It may not work correctly at other institutions without code changes (particularly the `DESIGNER_ROLE_ID` constant and the CSRF token handling).
+> Scripts are tested against NKU's Canvas instance (`nku.instructure.com`). Some configuration values (e.g. role IDs) are institution-specific and may need adjustment for other institutions.
+
 ---
 
-## Features
+## Repository Layout
 
-| Feature | Description |
+| Folder | Description |
 |---|---|
-| Enroll as Designer | Adds yourself to a course with the Designer role |
-| Unenroll Completely | Removes all your enrollments from a course |
-| Link Validator | Triggers Canvas's built-in link validation job and shows a summary of broken links |
-| Due-Date Checker | Checks whether any assignments have due dates falling before their section's start date |
-| Canvas Status | Live indicator (🟢/🟡/🔴) linking to status.instructure.com |
+| [Admin Tools](./Admin%20Tools/) | Scripts for Canvas admins and instructional designers — enrollment management, course-health checks, and more |
 
 ---
 
-## Installation
+## Quick Start
 
 1. Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension.
-2. Click the link below to install the script directly:
-
-   **[Install Canvas Enrollment Manager](https://raw.githubusercontent.com/NKU-CETI/Canvas-Enrollment-Plugin/main/canvas-enrollment-manager.user.js)**
-
-   Tampermonkey will open a confirmation page — click **Install**.
-
-3. Navigate to any Canvas course page (`https://*.instructure.com/courses/*`). The panel appears automatically in the left sidebar.
+2. Browse to the tool you need (see the table above).
+3. Follow the one-click install link in that tool's `README.md`.
+4. Navigate to the relevant Canvas page — scripts activate automatically.
 
 ---
 
-## Automatic Updates
+## Community Resources
 
-The script is configured for automatic updates via Tampermonkey. When a new version is published here:
-
-- Tampermonkey checks for updates periodically (default: every 24 hours).
-- You can also trigger a manual check: **Tampermonkey dashboard → the script → "Check for updates"**.
-- You will be prompted before any update is applied.
-
-Version numbering follows this convention:
-- `1.x` → bug fixes and minor improvements
-- `x.0` → major new features or breaking changes
-
----
-
-## Version History
-
-| Version | Notes |
-|---|---|
-| 1.3 | Added permission check: non-admin users see a contextual "no access" panel; fixed `@updateURL`/`@downloadURL` to point to this repository |
-| 1.2 | Fixed link validator false negative (results suppressed for up to 2 min on fast jobs); added `@updateURL`/`@downloadURL` for auto-update; added this README |
-| 1.1 | Fixed link validator stale-result false positive; added ℹ️ version tooltip; added last-run timestamp; fixed CSRF token reading; fixed HTTP 422 on bodyless POSTs |
-| 1.0 | Initial release |
-
----
-
-## Notes for Developers
-
-- **`DESIGNER_ROLE_ID = 5`** — This is NKU's internal Canvas role ID for the Designer role. Other institutions will have a different value. Check yours via `GET /api/v1/accounts/:id/roles`.
-- The script requires Tampermonkey's `GM_xmlhttpRequest` permission to make cross-origin API calls.
-- `DEBUG = false` by default. Set to `true` in the source to enable verbose console logging.
+- [jamesjonesmath/canvancement](https://github.com/jamesjonesmath/canvancement) — A large, well-maintained library of Canvas userscripts (ISC license). Good first stop for Canvas API patterns and prior art.
 
 ---
 
 ## Disclaimer
 
-This script was created for use by instructional design staff at **Northern Kentucky University**. It is provided as-is, without warranty. Use at your own risk. Always verify enrollment changes in Canvas directly.
+These scripts were created for use by instructional design staff at **Northern Kentucky University**. They are provided as-is, without warranty. Always verify changes in Canvas directly.
+
