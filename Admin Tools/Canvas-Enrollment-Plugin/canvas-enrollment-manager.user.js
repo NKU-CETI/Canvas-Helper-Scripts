@@ -8,8 +8,8 @@
 // @grant        GM_xmlhttpRequest
 // @connect      *.instructure.com
 // @connect      status.instructure.com
-// @updateURL    https://raw.githubusercontent.com/NKU-CETI/Canvas-Enrollment-Plugin/main/canvas-enrollment-manager.user.js
-// @downloadURL  https://raw.githubusercontent.com/NKU-CETI/Canvas-Enrollment-Plugin/main/canvas-enrollment-manager.user.js
+// @updateURL    https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/Admin%20Tools/Canvas-Enrollment-Plugin/canvas-enrollment-manager.user.js
+// @downloadURL  https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/Admin%20Tools/Canvas-Enrollment-Plugin/canvas-enrollment-manager.user.js
 // ==/UserScript==
 
 (function () {
