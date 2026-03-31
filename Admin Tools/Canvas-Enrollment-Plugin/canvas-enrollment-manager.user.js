@@ -9,8 +9,8 @@
 // @connect      *.instructure.com
 // @connect      status.instructure.com
 // @connect      raw.githubusercontent.com
-// @updateURL    https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/canvas-enrollment-manager.user.js
-// @downloadURL  https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/canvas-enrollment-manager.user.js
+// @updateURL    https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/Admin%20Tools/Canvas-Enrollment-Plugin/canvas-enrollment-manager.user.js
+// @downloadURL  https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/Admin%20Tools/Canvas-Enrollment-Plugin/canvas-enrollment-manager.user.js
 // ==/UserScript==
 
 (function () {
@@ -26,7 +26,7 @@
     // 3 polls × 4 s = 12 s maximum wait before showing results.
     const LINK_VALIDATOR_GRACE_POLLS = 3;
     const DESIGNER_ROLE_ID = 5; // Institution-specific role ID for the Designer role
-    const UPDATE_CHECK_URL = 'https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/canvas-enrollment-manager.user.js';
+    const UPDATE_CHECK_URL = 'https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/Admin%20Tools/Canvas-Enrollment-Plugin/canvas-enrollment-manager.user.js';
     const VERSION_TOOLTIP_BASE = `Canvas Enrollment Manager v${SCRIPT_VERSION}\nManages course enrollment and runs health checks.\nMade for Northern Kentucky University.`;
     const VERSION_CHECK_CACHE_KEY = 'cem_version_check';
     const VERSION_CHECK_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
