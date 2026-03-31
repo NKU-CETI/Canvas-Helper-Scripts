@@ -28,6 +28,8 @@
     const DESIGNER_ROLE_ID = 5; // Institution-specific role ID for the Designer role
     const UPDATE_CHECK_URL = 'https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/canvas-enrollment-manager.user.js';
     const VERSION_TOOLTIP_BASE = `Canvas Enrollment Manager v${SCRIPT_VERSION}\nManages course enrollment and runs health checks.\nMade for Northern Kentucky University.`;
+    const VERSION_CHECK_CACHE_KEY = 'cem_version_check';
+    const VERSION_CHECK_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
     const log = (...args) => DEBUG && console.log('Canvas Enrollment Manager:', ...args);
     const warn = (...args) => console.warn('Canvas Enrollment Manager:', ...args);
@@ -646,6 +648,18 @@
     // ─── GitHub version check ─────────────────────────────────────────────────
 
     function fetchLatestVersion(el) {
+        // Use a cached result if it is less than 24 hours old to avoid hitting
+        // GitHub's raw-content servers on every page load.
+        try {
+            const cached = JSON.parse(localStorage.getItem(VERSION_CHECK_CACHE_KEY) || 'null');
+            const age = Date.now() - cached?.ts;
+            if (cached && typeof cached.version === 'string' && cached.version &&
+                typeof cached.ts === 'number' && age >= 0 && age < VERSION_CHECK_TTL_MS) {
+                updateVersionTooltip(el, cached.version);
+                return;
+            }
+        } catch (_) { /* corrupt cache — fall through to a fresh fetch */ }
+
         GM_xmlhttpRequest({
             method: 'GET',
             url: UPDATE_CHECK_URL,
@@ -654,7 +668,11 @@
                 if (response.status >= 200 && response.status < 300) {
                     const match = response.responseText.match(/\/\/\s*@version\s+([\d.]+(?:[-+][^\s]*)?)/);
                     if (match) {
-                        updateVersionTooltip(el, match[1].trim());
+                        const latestVersion = match[1].trim();
+                        try {
+                            localStorage.setItem(VERSION_CHECK_CACHE_KEY, JSON.stringify({ version: latestVersion, ts: Date.now() }));
+                        } catch (_) { /* storage unavailable — ignore */ }
+                        updateVersionTooltip(el, latestVersion);
                     } else {
                         el.title = `${VERSION_TOOLTIP_BASE}\n\nCould not determine latest version.`;
                     }
