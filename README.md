@@ -23,7 +23,7 @@ A Tampermonkey userscript that adds an **Enrollment Management** panel to Canvas
 1. Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension.
 2. Click the link below to install the script directly:
 
-   **[Install Canvas Enrollment Manager](https://raw.githubusercontent.com/NKU-CETI/Canvas-Enrollment-Plugin/main/canvas-enrollment-manager.user.js)**
+   **[Install Canvas Enrollment Manager](https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/canvas-enrollment-manager.user.js)**
 
    Tampermonkey will open a confirmation page — click **Install**.
 
