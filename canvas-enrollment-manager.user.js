@@ -245,7 +245,7 @@
 
         const versionIcon = document.createElement('span');
         versionIcon.textContent = 'ℹ️';
-        versionIcon.title = `Canvas Enrollment Manager v${SCRIPT_VERSION}\nChecking for updates…`;
+        versionIcon.title = `${VERSION_TOOLTIP_BASE}\nChecking for updates…`;
         Object.assign(versionIcon.style, { fontSize: '1em', cursor: 'default' });
 
         const rightIcons = document.createElement('div');
