@@ -24,6 +24,8 @@
     // This covers fast jobs that finish before the first poll can observe them in-progress.
     // 3 polls × 4 s = 12 s maximum wait before showing results.
     const LINK_VALIDATOR_GRACE_POLLS = 3;
+    // Hard ceiling: 75 polls × 4 s = 5 minutes before we give up and surface a timeout.
+    const LINK_VALIDATOR_MAX_POLLS = 75;
     const NKU_DOMAINS = ['nku.instructure.com', 'nku.beta.instructure.com', 'nku.test.instructure.com'];
     const UPDATE_CHECK_URL = 'https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/Instructor%20Tools/Canvas-Instructor-Plugin/canvas-instructor-helper.user.js';
     const VERSION_TOOLTIP_BASE = `Canvas Instructor Helper v${SCRIPT_VERSION}\nRuns course health checks for instructors.\nMade for Northern Kentucky University.`;
@@ -608,6 +610,15 @@
 
         linkValidatorPollInterval = setInterval(() => {
             pollCount++;
+
+            if (pollCount > LINK_VALIDATOR_MAX_POLLS) {
+                clearInterval(linkValidatorPollInterval);
+                linkValidatorPollInterval = null;
+                statusDiv.textContent = 'Link validation timed out. The job may still be running in Canvas — try again in a few minutes.';
+                btn.disabled = false;
+                return;
+            }
+
             makeApiCall(url, 'GET', null, getCsrfToken(),
                 (data) => {
                     const state = data?.workflow_state;
