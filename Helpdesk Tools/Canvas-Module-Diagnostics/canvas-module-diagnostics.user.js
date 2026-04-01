@@ -773,6 +773,17 @@
         div.className = `alert alert-${type}`;
         div.textContent = message;
         div.style.marginBottom = '10px';
+
+        // Mark as a live region so screen readers announce status messages.
+        // Use an assertive alert role for error/danger messages, and a polite
+        // status role for non-urgent informational messages.
+        if (type === 'danger' || type === 'error') {
+            div.setAttribute('role', 'alert');
+            div.setAttribute('aria-live', 'assertive');
+        } else {
+            div.setAttribute('role', 'status');
+            div.setAttribute('aria-live', 'polite');
+        }
         panelContainer.prepend(div);
         setTimeout(() => {
             div.style.transition = 'opacity 0.5s';
