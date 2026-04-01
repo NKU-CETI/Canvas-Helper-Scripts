@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas Instructor Helper
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      1.1
 // @description  Adds a Course Health panel to Canvas course pages for instructors
 // @author       NKU CETI
 // @match        https://*.instructure.com/courses/*

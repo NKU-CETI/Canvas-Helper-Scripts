@@ -26,6 +26,20 @@ All scripts are Tampermonkey userscripts.
 
 ---
 
+## Versioning
+
+Scripts follow a simple three-part version number: **`MAJOR.MINOR.PATCH`**
+
+| Segment | When to increment | Example |
+|---|---|---|
+| `MAJOR` (first number) | Complete rewrites, fundamental behaviour changes, or intentional breaking changes | `1.x` → `2.0` |
+| `MINOR` (second number) | New features, new diagnostics, new UI sections, or meaningful removals — anything a user would notice | `1.0` → `1.1` |
+| `PATCH` (third number) | Bug fixes, typo corrections, and internal refactors with no visible change | `1.1` → `1.1.1` |
+
+**In practice**, most updates to these scripts will be `MINOR` bumps. Reserve `MAJOR` increments for genuine rewrites. Tampermonkey only requires the version to be *higher* than the installed one to offer an update, so any increment works — but using the right segment makes the changelog easier to read.
+
+---
+
 ## Disclaimer
 
 These scripts were created for use by Faculty and Staff at **Northern Kentucky University**. They are provided as-is, without warranty. Use at your own risk.
