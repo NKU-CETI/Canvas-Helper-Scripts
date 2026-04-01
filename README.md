@@ -28,15 +28,15 @@ All scripts are Tampermonkey userscripts.
 
 ## Versioning
 
-Scripts follow a simple three-part version number: **`MAJOR.MINOR.PATCH`**
+Scripts use simple numeric version numbers compatible with Tampermonkey. The canonical form is three-part: **`MAJOR.MINOR.PATCH`**, but scripts may also use a two-part form **`MAJOR.MINOR`**, which is treated as **`MAJOR.MINOR.0`**.
 
 | Segment | When to increment | Example |
 |---|---|---|
 | `MAJOR` (first number) | Complete rewrites, fundamental behaviour changes, or intentional breaking changes | `1.x` → `2.0` |
 | `MINOR` (second number) | New features, new diagnostics, new UI sections, or meaningful removals — anything a user would notice | `1.0` → `1.1` |
-| `PATCH` (third number) | Bug fixes, typo corrections, and internal refactors with no visible change | `1.1` → `1.1.1` |
+| `PATCH` (third number, optional) | Bug fixes, typo corrections, and internal refactors with no visible change. If omitted in a script header, it is assumed to be `0` (so `1.5` = `1.5.0`). | `1.1` → `1.1.1` |
 
-**In practice**, most updates to these scripts will be `MINOR` bumps. Reserve `MAJOR` increments for genuine rewrites. Tampermonkey only requires the version to be *higher* than the installed one to offer an update, so any increment works — but using the right segment makes the changelog easier to read.
+**In practice**, most updates to these scripts will be `MINOR` bumps. Reserve `MAJOR` increments for genuine rewrites. Tampermonkey only requires the version to be *higher* than the installed one to offer an update, so any increment works — but using the right segment (and treating two-part versions as `.0` patch) makes the changelog easier to read and keeps update ordering predictable.
 
 ---
 
