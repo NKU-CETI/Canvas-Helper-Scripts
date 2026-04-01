@@ -39,7 +39,7 @@ When an AI coding agent (e.g., GitHub Copilot) works in this repository, it may 
 - **Do not store PII or sensitive data in agent memory.** The `store_memory` tool (or any equivalent persistent-memory mechanism) must only be used for codebase conventions, patterns, and non-sensitive technical facts. Never save student names, user IDs, email addresses, enrollment records, grades, SIS IDs, API tokens, passwords, or any other PII — even in summarised or paraphrased form.
 - **Do not include sensitive data in commit messages, PR descriptions, or code comments.** If a real value must be shown as an example, use a clearly fictional placeholder (e.g., `user_12345`, `student@example.com`).
 - **Treat sensitive data as transient.** Any PII or credentials encountered during a session exist only in the current context window. Do not reference, repeat, or act on them beyond the immediate task at hand.
-- **Do not transmit sensitive data outside the repository's own Canvas domain.** All API calls generated or suggested by an agent must target the institution's own `*.instructure.com` endpoint — never a third-party service.
+- **Do not transmit sensitive data outside the repository's own Canvas domain.** All Canvas API calls that handle or may handle student data must target the institution's own `*.instructure.com` endpoint. Non-PII operational requests (for example, version or status checks) to third-party services are allowed, but they must never include PII or credentials.
 - **When in doubt, omit.** If it is unclear whether a value is sensitive, treat it as sensitive and do not persist or share it.
 
 ---
