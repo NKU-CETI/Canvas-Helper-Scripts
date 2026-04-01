@@ -308,18 +308,36 @@
         // Due-date check row (assignments due before section start)
         const dueDateDiv = document.createElement('div');
         Object.assign(dueDateDiv.style, { fontSize: '0.9em', color: '#555', marginBottom: '6px' });
-        dueDateDiv.textContent = 'Checking due dates…';
+        dueDateDiv.textContent = 'Due date check has not been run yet.';
         panelBody.appendChild(dueDateDiv);
 
-        checkDueDates(dueDateDiv);
+        const dueDateBtn = document.createElement('button');
+        dueDateBtn.type = 'button';
+        dueDateBtn.className = 'btn btn-default btn-xs';
+        dueDateBtn.textContent = 'Run due date check';
+        Object.assign(dueDateBtn.style, { marginBottom: '6px' });
+        dueDateBtn.addEventListener('click', () => {
+            dueDateDiv.textContent = 'Checking due dates…';
+            checkDueDates(dueDateDiv);
+        });
+        panelBody.appendChild(dueDateBtn);
 
         // Grade weighting check row
         const gradeWeightDiv = document.createElement('div');
         Object.assign(gradeWeightDiv.style, { fontSize: '0.9em', color: '#555', marginBottom: '6px' });
-        gradeWeightDiv.textContent = 'Checking grade weighting…';
+        gradeWeightDiv.textContent = 'Grade weighting check has not been run yet.';
         panelBody.appendChild(gradeWeightDiv);
 
-        checkGradeWeighting(gradeWeightDiv);
+        const gradeWeightBtn = document.createElement('button');
+        gradeWeightBtn.type = 'button';
+        gradeWeightBtn.className = 'btn btn-default btn-xs';
+        gradeWeightBtn.textContent = 'Run grade weighting check';
+        Object.assign(gradeWeightBtn.style, { marginBottom: '6px' });
+        gradeWeightBtn.addEventListener('click', () => {
+            gradeWeightDiv.textContent = 'Checking grade weighting…';
+            checkGradeWeighting(gradeWeightDiv);
+        });
+        panelBody.appendChild(gradeWeightBtn);
 
         // ── Get Help section (NKU only) ────────────────────────────────────────
         if (NKU_DOMAINS.includes(domain)) {
