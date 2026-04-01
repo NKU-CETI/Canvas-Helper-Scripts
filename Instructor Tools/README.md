@@ -10,7 +10,7 @@ Each sub-folder is a self-contained plugin with its own README, installation ins
 
 | Plugin | Description |
 |---|---|
-| [Canvas-Instructor-Plugin](./Canvas-Instructor-Plugin/) | Adds an Instructor Tools panel to Canvas course pages — link validator, due-date checks, missing due dates, and unpublished content detection |
+| [Canvas-Instructor-Plugin](./Canvas-Instructor-Plugin/) | Adds an Instructor Tools panel to Canvas course pages — link validator, due-date checks, grade weighting diagnostic, and CETI appointment booking (NKU only) |
 
 ---
 

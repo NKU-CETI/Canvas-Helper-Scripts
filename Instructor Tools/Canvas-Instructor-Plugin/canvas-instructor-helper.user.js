@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas Instructor Helper
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      2.0
 // @description  Adds a Course Health panel to Canvas course pages for instructors
 // @author       NKU CETI
 // @match        https://*.instructure.com/courses/*
@@ -16,7 +16,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.0';
+    const SCRIPT_VERSION = '2.0';
     const DEBUG = false;
     const REQUEST_TIMEOUT_MS = 15000;
     const LINK_VALIDATOR_POLL_INTERVAL_MS = 4000;
@@ -29,6 +29,8 @@
     const VERSION_TOOLTIP_BASE = `Canvas Instructor Helper v${SCRIPT_VERSION}\nRuns course health checks for instructors.\nMade for Northern Kentucky University.`;
     const VERSION_CHECK_CACHE_KEY = 'cih_version_check';
     const VERSION_CHECK_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+    const CETI_BOOKING_URL = 'https://outlook.office.com/book/CenterforExcellenceinTeachingandInnovation@mymailnku.onmicrosoft.com/?ismsaljsauthenabled';
+    const PANEL_COLLAPSED_KEY = 'cih_panel_collapsed';
 
     const log = (...args) => DEBUG && console.log('Canvas Instructor Helper:', ...args);
     const warn = (...args) => console.warn('Canvas Instructor Helper:', ...args);
@@ -202,19 +204,35 @@
             border: '1px solid #ddd',
         });
 
-        // Title row with Canvas status indicator on the right
+        // ── Title row ─────────────────────────────────────────────────────────
         const titleRow = document.createElement('div');
         Object.assign(titleRow.style, {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: '8px',
+        });
+
+        const titleLeft = document.createElement('div');
+        Object.assign(titleLeft.style, { display: 'flex', alignItems: 'center', gap: '6px' });
+
+        const collapseBtn = document.createElement('button');
+        Object.assign(collapseBtn.style, {
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '0 2px',
+            fontSize: '0.75em',
+            lineHeight: '1',
+            color: '#555',
         });
 
         const title = document.createElement('h3');
         title.textContent = 'Instructor Tools';
         title.style.margin = '0';
-        titleRow.appendChild(title);
+
+        titleLeft.appendChild(collapseBtn);
+        titleLeft.appendChild(title);
+        titleRow.appendChild(titleLeft);
 
         const statusLink = document.createElement('a');
         statusLink.textContent = '⚪';
@@ -242,15 +260,32 @@
         fetchCanvasStatus(statusLink);
         fetchLatestVersion(versionIcon);
 
+        // ── Collapsible body ──────────────────────────────────────────────────
+        const panelBody = document.createElement('div');
+        panelBody.id = 'instructor-helper-body';
+
+        const isCollapsed = getPanelCollapsed();
+        panelBody.style.display = isCollapsed ? 'none' : '';
+        collapseBtn.textContent = isCollapsed ? '▶' : '▼';
+        collapseBtn.title = isCollapsed ? 'Expand panel' : 'Collapse panel';
+
+        collapseBtn.addEventListener('click', () => {
+            const nowCollapsed = panelBody.style.display !== 'none';
+            panelBody.style.display = nowCollapsed ? 'none' : '';
+            collapseBtn.textContent = nowCollapsed ? '▶' : '▼';
+            collapseBtn.title = nowCollapsed ? 'Expand panel' : 'Collapse panel';
+            setPanelCollapsed(nowCollapsed);
+        });
+
         // ── Course Health section ──────────────────────────────────────────────
         const sep = document.createElement('hr');
         Object.assign(sep.style, { margin: '10px 0', border: 'none', borderTop: '1px solid #ddd' });
-        panelContainer.appendChild(sep);
+        panelBody.appendChild(sep);
 
         const healthTitle = document.createElement('h4');
         healthTitle.textContent = 'Course Health';
         Object.assign(healthTitle.style, { margin: '0 0 8px 0', fontSize: '1em' });
-        panelContainer.appendChild(healthTitle);
+        panelBody.appendChild(healthTitle);
 
         // Link validator row
         const linkValRow = document.createElement('div');
@@ -263,7 +298,7 @@
 
         linkValRow.appendChild(linkValBtn);
         linkValRow.appendChild(linkValStatus);
-        panelContainer.appendChild(linkValRow);
+        panelBody.appendChild(linkValRow);
 
         linkValBtn.addEventListener('click', () => startLinkValidator(linkValBtn, linkValStatus));
         checkLinkValidatorStatus(linkValBtn, linkValStatus);
@@ -272,26 +307,45 @@
         const dueDateDiv = document.createElement('div');
         Object.assign(dueDateDiv.style, { fontSize: '0.9em', color: '#555', marginBottom: '6px' });
         dueDateDiv.textContent = 'Checking due dates…';
-        panelContainer.appendChild(dueDateDiv);
+        panelBody.appendChild(dueDateDiv);
 
         checkDueDates(dueDateDiv);
 
-        // Missing due dates row (published assignments with no due date)
-        const missingDueDateDiv = document.createElement('div');
-        Object.assign(missingDueDateDiv.style, { fontSize: '0.9em', color: '#555', marginBottom: '6px' });
-        missingDueDateDiv.textContent = 'Checking for missing due dates…';
-        panelContainer.appendChild(missingDueDateDiv);
+        // Grade weighting check row
+        const gradeWeightDiv = document.createElement('div');
+        Object.assign(gradeWeightDiv.style, { fontSize: '0.9em', color: '#555', marginBottom: '6px' });
+        gradeWeightDiv.textContent = 'Checking grade weighting…';
+        panelBody.appendChild(gradeWeightDiv);
 
-        checkMissingDueDates(missingDueDateDiv);
+        checkGradeWeighting(gradeWeightDiv);
 
-        // Unpublished content row
-        const unpublishedDiv = document.createElement('div');
-        Object.assign(unpublishedDiv.style, { fontSize: '0.9em', color: '#555', marginBottom: '6px' });
-        unpublishedDiv.textContent = 'Checking for unpublished content…';
-        panelContainer.appendChild(unpublishedDiv);
+        // ── Get Help section (NKU only) ────────────────────────────────────────
+        if (NKU_DOMAINS.includes(domain)) {
+            const helpSep = document.createElement('hr');
+            Object.assign(helpSep.style, { margin: '10px 0', border: 'none', borderTop: '1px solid #ddd' });
+            panelBody.appendChild(helpSep);
 
-        checkUnpublishedContent(unpublishedDiv);
+            const helpTitle = document.createElement('h4');
+            helpTitle.textContent = 'Get Help';
+            Object.assign(helpTitle.style, { margin: '0 0 6px 0', fontSize: '1em' });
+            panelBody.appendChild(helpTitle);
 
+            const helpMsg = document.createElement('p');
+            Object.assign(helpMsg.style, { margin: '0 0 6px 0', fontSize: '0.9em', color: '#555' });
+            helpMsg.textContent = 'Need help with your course? Schedule time with an NKU instructional designer.';
+            panelBody.appendChild(helpMsg);
+
+            const helpLink = document.createElement('a');
+            helpLink.textContent = 'Book an Appointment';
+            helpLink.href = CETI_BOOKING_URL;
+            helpLink.target = '_blank';
+            helpLink.rel = 'noopener noreferrer';
+            helpLink.className = 'btn btn-default';
+            Object.assign(helpLink.style, { display: 'inline-block', fontSize: '0.9em' });
+            panelBody.appendChild(helpLink);
+        }
+
+        panelContainer.appendChild(panelBody);
         insertPanelContainer();
     }
 
@@ -745,142 +799,113 @@
         );
     }
 
-    // ─── Missing Due Dates Check ──────────────────────────────────────────────
+    // ─── Grade Weighting Checker ──────────────────────────────────────────────
 
-    // Finds published assignments that have no due date at all.  Instructors often
-    // overlook this, which can confuse students and affect course accessibility.
-    function checkMissingDueDates(container) {
-        const url = `https://${domain}/api/v1/courses/${courseId}/assignments?per_page=100`;
-        fetchAllPagesRaw(url, getCsrfToken(), [],
-            (assignments) => {
-                const missing = assignments.filter(a => a.published && !a.due_at);
-                container.innerHTML = '';
-
-                if (missing.length === 0) {
-                    container.textContent = '✅ All published assignments have due dates.';
+    // Fetches the course settings and assignment groups to diagnose potential
+    // issues with grade weighting configuration.
+    function checkGradeWeighting(container) {
+        const courseUrl = `https://${domain}/api/v1/courses/${courseId}`;
+        makeApiCall(courseUrl, 'GET', null, getCsrfToken(),
+            (course) => {
+                if (!course.apply_assignment_group_weights) {
+                    container.textContent = 'ℹ️ This course does not use weighted assignment groups.';
                     return;
                 }
-
-                container.innerHTML = `⚠️ ${missing.length} published assignment(s) have no due date:`;
-
-                const list = document.createElement('ul');
-                Object.assign(list.style, { margin: '4px 0 0 0', paddingLeft: '18px' });
-
-                missing.slice(0, 5).forEach(a => {
-                    const li = document.createElement('li');
-                    li.innerHTML =
-                        `<a href="https://${domain}/courses/${courseId}/assignments/${a.id}" target="_blank">${a.name}</a>`;
-                    list.appendChild(li);
-                });
-
-                if (missing.length > 5) {
-                    const li = document.createElement('li');
-                    li.style.color = '#888';
-                    li.textContent = `…and ${missing.length - 5} more`;
-                    list.appendChild(li);
-                }
-
-                container.appendChild(list);
+                fetchAllPagesRaw(
+                    `https://${domain}/api/v1/courses/${courseId}/assignment_groups?include[]=assignments&per_page=100`,
+                    getCsrfToken(), [],
+                    (groups) => renderGradeWeightResults(container, groups),
+                    () => { container.textContent = 'Could not fetch assignment group data.'; }
+                );
             },
-            () => { container.textContent = 'Could not fetch assignment data.'; }
+            () => { container.textContent = 'Could not fetch course data.'; }
         );
     }
 
-    // ─── Unpublished Content Check ────────────────────────────────────────────
+    function renderGradeWeightResults(container, groups) {
+        container.innerHTML = '';
 
-    // Checks for assignments and modules that are still unpublished (not visible
-    // to students).  Instructors may forget to publish content before a term starts.
-    function checkUnpublishedContent(container) {
-        let assignmentsDone = false;
-        let modulesDone = false;
-        let unpublishedAssignments = [];
-        let unpublishedModules = [];
+        if (!groups || groups.length === 0) {
+            container.textContent = 'ℹ️ No assignment groups found.';
+            return;
+        }
 
-        function renderResults() {
-            if (!assignmentsDone || !modulesDone) return;
+        const totalWeight = groups.reduce((sum, g) => sum + (g.group_weight || 0), 0);
+        const rounded = Math.round(totalWeight * 10) / 10;
+        const settingsUrl = `https://${domain}/courses/${courseId}/assignments`;
+        const messages = [];
 
-            container.innerHTML = '';
-            const totalUnpublished = unpublishedAssignments.length + unpublishedModules.length;
-
-            if (totalUnpublished === 0) {
-                container.textContent = '✅ No unpublished assignments or modules found.';
-                return;
+        if (totalWeight === 0) {
+            container.innerHTML =
+                `⚠️ Weighted grades are enabled but all assignment groups are at 0%. ` +
+                `<a href="${settingsUrl}" target="_blank">Review assignment groups →</a>`;
+            return;
+        } else if (rounded === 100) {
+            // Check for assignments named "extra credit" — these won't actually add
+            // extra credit in a standard weighted course where weights sum to 100%.
+            const allAssignments = groups.flatMap(g => g.assignments || []);
+            const ecAssignments = allAssignments.filter(
+                a => /extra\s*credit/i.test(a.name) && a.published !== false
+            );
+            if (ecAssignments.length > 0) {
+                messages.push(
+                    `ℹ️ Weights total 100%, but ${ecAssignments.length} assignment(s) appear to be ` +
+                    `named "extra credit". Simply naming an assignment "extra credit" does not make ` +
+                    `it extra credit in a weighted course. Consider using Canvas's Fudge Points ` +
+                    `feature or a dedicated extra credit assignment group weighted above 100%.`
+                );
+            } else {
+                messages.push('✅ Assignment group weights total 100%.');
             }
+        } else if (rounded < 100) {
+            messages.push(
+                `⚠️ Assignment group weights total ${rounded}% (expected 100%). ` +
+                `Student grades may not calculate as expected.`
+            );
+        } else {
+            messages.push(
+                `ℹ️ Assignment group weights total ${rounded}% — ` +
+                `this may apply extra credit to student final grades.`
+            );
+        }
 
-            if (unpublishedAssignments.length > 0) {
-                const heading = document.createElement('div');
-                heading.innerHTML = `⚠️ ${unpublishedAssignments.length} unpublished assignment(s):`;
-                container.appendChild(heading);
-
-                const list = document.createElement('ul');
-                Object.assign(list.style, { margin: '4px 0 6px 0', paddingLeft: '18px' });
-
-                unpublishedAssignments.slice(0, 5).forEach(a => {
-                    const li = document.createElement('li');
-                    li.innerHTML =
-                        `<a href="https://${domain}/courses/${courseId}/assignments/${a.id}" target="_blank">${a.name}</a>`;
-                    list.appendChild(li);
-                });
-
-                if (unpublishedAssignments.length > 5) {
-                    const li = document.createElement('li');
-                    li.style.color = '#888';
-                    li.textContent = `…and ${unpublishedAssignments.length - 5} more`;
-                    list.appendChild(li);
-                }
-
-                container.appendChild(list);
-            }
-
-            if (unpublishedModules.length > 0) {
-                const heading = document.createElement('div');
-                heading.innerHTML = `⚠️ ${unpublishedModules.length} unpublished module(s):`;
-                container.appendChild(heading);
-
-                const list = document.createElement('ul');
-                Object.assign(list.style, { margin: '4px 0 0 0', paddingLeft: '18px' });
-
-                unpublishedModules.slice(0, 5).forEach(m => {
-                    const li = document.createElement('li');
-                    const modulesUrl = `https://${domain}/courses/${courseId}/modules`;
-                    li.innerHTML = `<a href="${modulesUrl}" target="_blank">${m.name}</a>`;
-                    list.appendChild(li);
-                });
-
-                if (unpublishedModules.length > 5) {
-                    const li = document.createElement('li');
-                    li.style.color = '#888';
-                    li.textContent = `…and ${unpublishedModules.length - 5} more`;
-                    list.appendChild(li);
-                }
-
-                container.appendChild(list);
+        // If there are 3 or more groups, flag any single group that accounts for
+        // more than 60% of the total weight — likely an accidental misconfiguration.
+        if (groups.length >= 3 && totalWeight > 0) {
+            const maxGroup = groups.reduce((a, b) =>
+                (a.group_weight || 0) > (b.group_weight || 0) ? a : b
+            );
+            const maxWeight = maxGroup.group_weight || 0;
+            if (maxWeight / totalWeight > 0.6) {
+                messages.push(
+                    `ℹ️ "${maxGroup.name}" is weighted at ${maxWeight}%, ` +
+                    `accounting for more than 60% of the total grade weight across ` +
+                    `${groups.length} groups. Double-check that this is intentional.`
+                );
             }
         }
 
-        // Fetch unpublished assignments
-        fetchAllPagesRaw(
-            `https://${domain}/api/v1/courses/${courseId}/assignments?per_page=100`,
-            getCsrfToken(), [],
-            (assignments) => {
-                unpublishedAssignments = assignments.filter(a => !a.published);
-                assignmentsDone = true;
-                renderResults();
-            },
-            () => { assignmentsDone = true; renderResults(); }
-        );
+        messages.forEach((msg, i) => {
+            const div = document.createElement('div');
+            if (i > 0) div.style.marginTop = '4px';
+            div.textContent = msg;
+            container.appendChild(div);
+        });
 
-        // Fetch unpublished modules (runs in parallel with assignments fetch)
-        fetchAllPagesRaw(
-            `https://${domain}/api/v1/courses/${courseId}/modules?per_page=100`,
-            getCsrfToken(), [],
-            (modules) => {
-                unpublishedModules = modules.filter(m => !m.published);
-                modulesDone = true;
-                renderResults();
-            },
-            () => { modulesDone = true; renderResults(); }
-        );
+        const linkDiv = document.createElement('div');
+        Object.assign(linkDiv.style, { marginTop: '4px', fontSize: '0.85em' });
+        linkDiv.innerHTML = `<a href="${settingsUrl}" target="_blank">View Assignment Groups →</a>`;
+        container.appendChild(linkDiv);
+    }
+
+    // ─── Panel collapse helpers ───────────────────────────────────────────────
+
+    function getPanelCollapsed() {
+        try { return localStorage.getItem(PANEL_COLLAPSED_KEY) === 'true'; } catch (_) { return false; }
+    }
+
+    function setPanelCollapsed(collapsed) {
+        try { localStorage.setItem(PANEL_COLLAPSED_KEY, collapsed ? 'true' : 'false'); } catch (_) { /* storage unavailable */ }
     }
 
 })();

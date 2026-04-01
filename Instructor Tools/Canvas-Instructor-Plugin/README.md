@@ -13,9 +13,10 @@ A Tampermonkey userscript that adds an **Instructor Tools** panel to Canvas cour
 |---|---|
 | Link Validator | Triggers Canvas's built-in link validation job and shows a summary of broken links |
 | Due-Date Checker | Checks whether any assignments have due dates falling before their section's start date |
-| Missing Due Dates | Finds published assignments that have no due date set at all |
-| Unpublished Content | Lists any assignments or modules that are still unpublished (not visible to students) |
+| Grade Weighting | Diagnoses assignment group weight configuration — flags totals ≠ 100%, "extra credit" naming pitfalls, and groups with a disproportionately high weight |
 | Canvas Status | Live indicator (🟢/🟡/🔴) linking to status.instructure.com |
+| Get Help *(NKU only)* | One-click link to book an appointment with an NKU instructional designer via CETI |
+| Expand / Collapse | The panel body can be collapsed to save sidebar space; the state persists across page loads |
 
 The panel is only shown to users with a **Teacher** or **TA** enrollment in the current course.
 
@@ -52,6 +53,7 @@ Version numbering follows this convention:
 
 | Version | Notes |
 |---|---|
+| 2.0 | Added grade weighting diagnostic, expand/collapse panel toggle, and NKU CETI appointment booking link; removed missing due dates and unpublished content checks |
 | 1.0 | Initial release — link validator, due-date checker, missing due dates, unpublished content check, Canvas status indicator, and GitHub version check |
 
 ---
@@ -59,10 +61,12 @@ Version numbering follows this convention:
 ## Notes for Developers
 
 - The permission check queries the course enrollments endpoint (`GET /api/v1/courses/:id/enrollments?user_id=:id`) and requires a `TeacherEnrollment` or `TaEnrollment` to proceed. Users without a qualifying enrollment see a contextual "no access" message.
+- The grade weighting check first calls `GET /api/v1/courses/:id` to read `apply_assignment_group_weights`, then fetches all assignment groups with `include[]=assignments` to inspect weights and assignment names.
 - The script requires Tampermonkey's `GM_xmlhttpRequest` permission to make cross-origin API calls.
 - `DEBUG = false` by default. Set to `true` in the source to enable verbose console logging.
 - The link validator last-run timestamp is stored in `localStorage` with the key `canvas_ih_lv_last_run_<courseId>`.
 - The version-check result is cached in `localStorage` under `cih_version_check` for 24 hours to avoid hammering GitHub's raw-content CDN.
+- The panel collapsed/expanded state is persisted in `localStorage` under `cih_panel_collapsed`.
 
 ---
 
