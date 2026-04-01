@@ -2,7 +2,7 @@
 
 ## Repository Overview
 
-This repository contains **Tampermonkey userscripts** and utilities for Canvas LMS administrators and instructional designers at **Northern Kentucky University (NKU)**. Scripts are designed for use exclusively on NKU's Canvas instances.
+This repository contains **Tampermonkey userscripts** and utilities for Canvas LMS administrators and instructional designers at **Northern Kentucky University (NKU)**. Scripts are designed primarily for NKU's Canvas instances; they may load on other Canvas instances but NKU-specific values (role IDs, domain checks, etc.) will differ.
 
 ## Repository Structure
 
@@ -67,9 +67,7 @@ Every userscript **must** start with a valid `==UserScript==` metadata block. Re
 // @version      1.0
 // @description  <Short description>
 // @author       NKU CETI
-// @match        https://nku.instructure.com/courses/*
-// @match        https://nku.beta.instructure.com/courses/*
-// @match        https://nku.test.instructure.com/courses/*
+// @match        https://*.instructure.com/courses/*
 // @grant        GM_xmlhttpRequest
 // @connect      *.instructure.com
 // @updateURL    https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/<path>/<script>.user.js
@@ -77,7 +75,7 @@ Every userscript **must** start with a valid `==UserScript==` metadata block. Re
 // ==/UserScript==
 ```
 
-- **`@match` must list all three NKU domains explicitly** — never use the wildcard `https://*.instructure.com/*`. Scripts are NKU-specific and must not run on other institutions' Canvas instances.
+- `@match` uses the `*.instructure.com` wildcard so the script loads on any Canvas instance. Scripts detect the current domain at runtime and show a contextual warning to users on non-NKU instances where NKU-specific values (role IDs, etc.) may not apply.
 - `@grant GM_xmlhttpRequest` is required for cross-origin Canvas API calls.
 - `@updateURL`/`@downloadURL` must always point to the `main` branch raw URL so Tampermonkey can auto-update.
 
@@ -146,6 +144,10 @@ Use this documentation to understand every API endpoint before implementing it �
 
 Secondary reference: https://canvas.instructure.com/doc/api/ (legacy, less detailed)
 
+### Pagination
+
+The Canvas REST API paginates list responses. The next page URL is returned in the `Link` response header with `rel="next"`. Scripts that fetch lists (enrollments, assignments, sections, etc.) **must** follow pagination links until no `rel="next"` is present, or results will be silently truncated.
+
 ### Common endpoints used in this repository
 
 | Action | Endpoint |
@@ -166,6 +168,7 @@ Secondary reference: https://canvas.instructure.com/doc/api/ (legacy, less detai
 ## Community Resources
 
 - **[jamesjonesmath/canvancement](https://github.com/jamesjonesmath/canvancement)** (ISC licence) — a well-maintained collection of Canvas userscripts. Check here first for Canvas API patterns and prior art before writing new Canvas integrations from scratch.
+- **[Kaltura Developer Portal](https://developer.kaltura.com)** — reference for Kaltura media API. NKU uses Kaltura for video/media; future tools may interact with Kaltura session tokens, media entries, or the KMC. Consult this documentation before implementing any Kaltura integration.
 
 ---
 
@@ -180,10 +183,18 @@ Secondary reference: https://canvas.instructure.com/doc/api/ (legacy, less detai
 
 ## Institution Notes
 
-Scripts are built and tested against **NKU's Canvas instance** and must only run there. The three NKU domains are the only permitted `@match` values. Do not use `*.instructure.com` wildcards.
+Scripts are built and tested against **NKU's Canvas instance**. They load on any Canvas instance via the `*.instructure.com` wildcard `@match`, but display a contextual warning when run outside the three NKU domains, since NKU-specific values (role IDs, etc.) will not match.
 
-If adapting a script for another institution (outside this repository):
-- Replace all three NKU `@match` entries with the target institution's domain.
-- Look up the correct role IDs via `GET /api/v1/accounts/:id/roles` on that instance.
+### NKU Canvas Instance Details
+
+| Property | Value |
+|---|---|
+| Root account ID | `1` (used in account-scoped API calls, e.g. `GET /api/v1/accounts/1/roles`) |
+| Default timezone | `America/New_York` |
+| SIS integration | Active — `sis_course_id`, `sis_user_id`, and `sis_section_id` fields appear in API responses and are FERPA-protected; avoid logging or persisting them |
+
+### Adapting for another institution
+
+- Look up the correct role IDs via `GET /api/v1/accounts/:id/roles` on that instance — NKU's IDs (especially `DESIGNER_ROLE_ID = 6`) will likely differ.
 - Verify CSRF token handling matches the target instance.
 - Re-evaluate FERPA or equivalent data-privacy obligations for that institution.

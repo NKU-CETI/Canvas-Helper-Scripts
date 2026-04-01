@@ -49,6 +49,7 @@ Version numbering follows this convention:
 
 | Version | Notes |
 |---|---|
+| 1.7 | Reverted `@match` to `*.instructure.com` wildcard; restored contextual non-NKU warning message for users on other Canvas instances |
 | 1.6 | Restricted `@match` to NKU domains only (`nku.instructure.com`, `nku.beta.instructure.com`, `nku.test.instructure.com`); fixed `DESIGNER_ROLE_ID` from 5 to 6 (id 5 is TaEnrollment; id 6 is DesignerEnrollment) |
 | 1.5 | Added GitHub version check: the ℹ️ tooltip now shows ✅ (up to date) or 🔔 (update available) by fetching the latest `@version` from GitHub on page load |
 | 1.4 | Fixed link validator false negative: POST response carried stale "no broken links" data; now always polls via GET after triggering a new job |

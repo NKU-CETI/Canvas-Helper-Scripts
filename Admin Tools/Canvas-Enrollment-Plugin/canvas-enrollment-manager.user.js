@@ -1,12 +1,10 @@
 // ==UserScript==
 // @name         Canvas Enrollment Manager
 // @namespace    http://tampermonkey.net/
-// @version      1.6
+// @version      1.7
 // @description  Adds buttons to Canvas course pages to modify your enrollment
 // @author       NKU CETI
-// @match        https://nku.instructure.com/courses/*
-// @match        https://nku.beta.instructure.com/courses/*
-// @match        https://nku.test.instructure.com/courses/*
+// @match        https://*.instructure.com/courses/*
 // @grant        GM_xmlhttpRequest
 // @connect      *.instructure.com
 // @connect      status.instructure.com
@@ -18,7 +16,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.6';
+    const SCRIPT_VERSION = '1.7';
     const DEBUG = false;
     const REQUEST_TIMEOUT_MS = 15000;
     const LINK_VALIDATOR_POLL_INTERVAL_MS = 4000;
@@ -169,10 +167,18 @@
         const msg = document.createElement('p');
         Object.assign(msg.style, { margin: '0', fontSize: '0.95em' });
 
-        msg.innerHTML =
-            'This script requires account admin permissions in Canvas and will not ' +
-            'work for your account. If you think you would have a use for it, please ' +
-            'email <a href="mailto:ceti@nku.edu">ceti@nku.edu</a> to inquire about access.';
+        if (NKU_DOMAINS.includes(domain)) {
+            msg.innerHTML =
+                'This script requires account admin permissions in Canvas and will not ' +
+                'work for your account. If you think you would have a use for it, please ' +
+                'email <a href="mailto:ceti@nku.edu">ceti@nku.edu</a> to inquire about access.';
+        } else {
+            msg.textContent =
+                'This script was built for Northern Kentucky University and some features ' +
+                'may not work as intended on other Canvas instances. It requires specific ' +
+                'Canvas admin permissions that your account does not appear to have. Role IDs ' +
+                'and other NKU-specific values will likely differ on your instance.';
+        }
 
         buttonContainer.appendChild(msg);
         insertButtonContainer();
