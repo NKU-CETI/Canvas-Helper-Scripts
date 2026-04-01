@@ -49,6 +49,7 @@ Version numbering follows this convention:
 
 | Version | Notes |
 |---|---|
+| 1.6 | Restricted `@match` to NKU domains only (`nku.instructure.com`, `nku.beta.instructure.com`, `nku.test.instructure.com`); fixed `DESIGNER_ROLE_ID` from 5 to 6 (id 5 is TaEnrollment; id 6 is DesignerEnrollment) |
 | 1.5 | Added GitHub version check: the ℹ️ tooltip now shows ✅ (up to date) or 🔔 (update available) by fetching the latest `@version` from GitHub on page load |
 | 1.4 | Fixed link validator false negative: POST response carried stale "no broken links" data; now always polls via GET after triggering a new job |
 | 1.3 | Added permission check: non-admin users see a contextual "no access" panel; fixed `@updateURL`/`@downloadURL` to point to this repository |
@@ -60,7 +61,7 @@ Version numbering follows this convention:
 
 ## Notes for Developers
 
-- **`DESIGNER_ROLE_ID = 5`** — This is NKU's internal Canvas role ID for the Designer role. Other institutions will have a different value. Check yours via `GET /api/v1/accounts/:id/roles`.
+- **`DESIGNER_ROLE_ID = 6`** — NKU's Canvas role ID for the Designer enrollment role (`DesignerEnrollment`). Verify via `GET /api/v1/accounts/:id/roles` if roles change.
 - The script requires Tampermonkey's `GM_xmlhttpRequest` permission to make cross-origin API calls.
 - `DEBUG = false` by default. Set to `true` in the source to enable verbose console logging.
 
