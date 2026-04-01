@@ -134,13 +134,9 @@
     // enrolled as Helpdesk (role_id 177) so we avoid a second network call.
     function checkPermissionsAndProceed() {
         log('Checking Enroll Help Desk permission (role', ENROLL_HELPDESK_ADMIN_ROLE_ID, ')');
-        const url = `https://${domain}/api/v1/courses/${courseId}/enrollments?user_id=${userId}`;
-        makeApiCall(url, 'GET', null, getCsrfToken(),
+        const url = `https://${domain}/api/v1/courses/${courseId}/enrollments?user_id=${userId}&per_page=100`;
+        fetchAllPagesRaw(url, getCsrfToken(), [],
             (enrollments) => {
-                if (!Array.isArray(enrollments)) {
-                    log('Unexpected enrollments response, hiding panel');
-                    return;
-                }
                 const hasAdminRole = enrollments.some(
                     e => e.role_id === ENROLL_HELPDESK_ADMIN_ROLE_ID);
                 if (!hasAdminRole) {
@@ -608,8 +604,8 @@
     function unenrollCompletely(courseId, userId, domain, csrfToken) {
         log(`Unenrolling user ${userId} from course ${courseId}`);
 
-        const url = `https://${domain}/api/v1/courses/${courseId}/enrollments?user_id=${userId}`;
-        makeApiCall(url, 'GET', null, csrfToken,
+        const url = `https://${domain}/api/v1/courses/${courseId}/enrollments?user_id=${userId}&per_page=100`;
+        fetchAllPagesRaw(url, csrfToken, [],
             (enrollments) => {
                 const targets = enrollments.filter(e =>
                     e.role_id === HELPDESK_ROLE_ID);

@@ -12,10 +12,19 @@ Canvas-Helper-Scripts/
 │   ├── Canvas-Enrollment-Plugin/
 │   │   └── canvas-enrollment-manager.user.js   ← main userscript
 │   └── README.md
+├── Helpdesk Tools/
+│   ├── Canvas-Module-Diagnostics/
+│   │   └── canvas-module-diagnostics.user.js   ← helpdesk userscript
+│   ├── Custom-CSS-Theme/
+│   │   ├── theme-inject.js
+│   │   └── helpdesk-role-styles.css
+│   └── README.md
 └── README.md
 ```
 
-New plugins go under `Admin Tools/<Plugin-Name>/` with their own `README.md` and `*.user.js` file.
+New plugins for Canvas admins and instructional designers go under `Admin Tools/<Plugin-Name>/`.
+New tools for helpdesk staff go under `Helpdesk Tools/<Tool-Name>/`.
+Both follow the same conventions: each folder has its own `README.md` and `*.user.js` file.
 
 ---
 
@@ -134,8 +143,14 @@ The following roles are defined in NKU's Canvas instance (retrieved via `GET /ap
 | 27 | `RPT Builder` | RPT Builder | Course | `TeacherEnrollment` (custom) |
 | 29 | `Outcomes Service` | Outcomes Service | Account | `AccountMembership` (custom) |
 | 31 | `Quizzes.Next Service` | Quizzes.Next Service | Account | `AccountMembership` (custom) |
+| 177 | `Helpdesk` | Helpdesk | Course | `TeacherEnrollment` (custom) |
+| 178 | `Enroll Help Desk` | Enroll Help Desk | Account | `AccountMembership` (custom) |
 
 **`DESIGNER_ROLE_ID = 6`** — Use this constant when enrolling users as Designer. (Role ID 5 is TaEnrollment, not Designer.)
+
+**`HELPDESK_ROLE_ID = 177`** — Course enrollment role for helpdesk staff. Used in `canvas-module-diagnostics.user.js`.
+
+**`ENROLL_HELPDESK_ADMIN_ROLE_ID = 178`** — Admin permission role ("Enroll Help Desk"). Users with this role can enroll/unenroll the Helpdesk role in courses. The Helpdesk Tools panel is only shown to users who hold this role.
 
 ### Version Numbering
 
@@ -183,10 +198,17 @@ The Canvas REST API paginates list responses. The next page URL is returned in t
 
 ## Adding a New Plugin
 
+**Admin tools** (for Canvas admins / instructional designers):
 1. Create `Admin Tools/<Plugin-Name>/` directory.
 2. Add `<plugin-name>.user.js` (follow the conventions above).
 3. Add a `README.md` with: Features table, Installation steps, Automatic Updates section, Version History table, Notes for Developers, and Disclaimer.
 4. Add a row to the table in `Admin Tools/README.md`.
+
+**Helpdesk tools** (for helpdesk staff):
+1. Create `Helpdesk Tools/<Tool-Name>/` directory.
+2. Add `<tool-name>.user.js` (follow the conventions above).
+3. Add a `README.md` with the same sections listed above.
+4. Add a row to the table in `Helpdesk Tools/README.md`.
 
 ---
 
