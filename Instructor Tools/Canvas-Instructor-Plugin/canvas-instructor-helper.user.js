@@ -16,7 +16,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '2.0';
+    const SCRIPT_VERSION = '1.1';
     const DEBUG = false;
     const REQUEST_TIMEOUT_MS = 15000;
     const LINK_VALIDATOR_POLL_INTERVAL_MS = 4000;
