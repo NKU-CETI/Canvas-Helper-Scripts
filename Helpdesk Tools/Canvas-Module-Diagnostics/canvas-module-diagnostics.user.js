@@ -23,8 +23,9 @@
     const HELPDESK_ROLE_ID = 177; // Course enrollment role: "Helpdesk"
     const HELPDESK_ROLE_NAME = 'Helpdesk'; // Display name of the role in Canvas
     // Account-level admin role that grants permission to enroll/unenroll helpdesk
-    // workers.  Only users who have this role in the current course will see the
-    // Helpdesk Tools panel.
+    // workers.  Only users who hold this role at the account level see the
+    // Helpdesk Tools panel.  This is an AccountMembership role and does NOT
+    // appear in course enrollment responses.
     const ENROLL_HELPDESK_ADMIN_ROLE_ID = 178; // Admin permission role: "Enroll Help Desk"
     const UPDATE_CHECK_URL = 'https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/Helpdesk%20Tools/Canvas-Module-Diagnostics/canvas-module-diagnostics.user.js';
     const VERSION_TOOLTIP_BASE = `Canvas Module Diagnostics v${SCRIPT_VERSION}\nDiagnoses module completion requirement issues for helpdesk staff.\nMade for Northern Kentucky University.`;
@@ -128,31 +129,46 @@
 
     // ─── Permission check ─────────────────────────────────────────────────────
 
-    // Checks whether the current user has the "Enroll Help Desk" admin role
-    // (role_id 178) in this course.  Only users with that role see the panel.
-    // The same API response is used to detect whether the user is already
-    // enrolled as Helpdesk (role_id 177) so we avoid a second network call.
+    // Checks whether the current user holds the "Enroll Help Desk" account-level
+    // admin role (role_id 178).  This is an AccountMembership role and therefore
+    // will NOT appear in course enrollment responses — it must be verified via the
+    // account admins endpoint.  Only users with that account role see the panel.
+    // A second fetch then checks course enrollments for role_id 177 (Helpdesk) to
+    // determine whether the user is already enrolled in this course as Helpdesk.
     function checkPermissionsAndProceed() {
-        log('Checking Enroll Help Desk permission (role', ENROLL_HELPDESK_ADMIN_ROLE_ID, ')');
-        const url = `https://${domain}/api/v1/courses/${courseId}/enrollments?user_id=${userId}&per_page=100`;
-        fetchAllPagesRaw(url, getCsrfToken(), [],
-            (enrollments) => {
-                const hasAdminRole = enrollments.some(
-                    e => e.role_id === ENROLL_HELPDESK_ADMIN_ROLE_ID);
+        log('Checking Enroll Help Desk account permission (role', ENROLL_HELPDESK_ADMIN_ROLE_ID, ')');
+        const adminsUrl = `https://${domain}/api/v1/accounts/1/admins?user_id=${userId}&per_page=100`;
+        fetchAllPagesRaw(adminsUrl, getCsrfToken(), [],
+            (admins) => {
+                const hasAdminRole = admins.some(
+                    a => a.role_id === ENROLL_HELPDESK_ADMIN_ROLE_ID);
                 if (!hasAdminRole) {
-                    log('User does not have Enroll Help Desk role, hiding panel');
+                    log('User does not have Enroll Help Desk account role, hiding panel');
                     // No panel shown — the script is silent for users without the role.
                     return;
                 }
-                log('User has Enroll Help Desk role, proceeding');
-                const isEnrolled = enrollments.some(
-                    e => e.role_id === HELPDESK_ROLE_ID);
-                initializePanel(isEnrolled);
+                log('User has Enroll Help Desk account role, checking course enrollment status');
+                // Check course enrollments to see if this user is already enrolled
+                // as Helpdesk in the current course.
+                const enrollUrl = `https://${domain}/api/v1/courses/${courseId}/enrollments?user_id=${userId}&per_page=100`;
+                fetchAllPagesRaw(enrollUrl, getCsrfToken(), [],
+                    (enrollments) => {
+                        const isEnrolled = enrollments.some(
+                            e => e.role_id === HELPDESK_ROLE_ID);
+                        initializePanel(isEnrolled);
+                    },
+                    (error) => {
+                        log('Course enrollment check failed:', error);
+                        // Show the panel anyway — the user has the account permission.
+                        // The enroll/unenroll action will reveal any access issue.
+                        initializePanel(false);
+                    }
+                );
             },
             (error) => {
-                log('Permission check failed:', error);
+                log('Account permission check failed:', error);
                 // Silently exit — do not render a panel for users who may not
-                // have access or are not enrolled in the course at all.
+                // have this account role or whose request was refused.
             }
         );
     }
