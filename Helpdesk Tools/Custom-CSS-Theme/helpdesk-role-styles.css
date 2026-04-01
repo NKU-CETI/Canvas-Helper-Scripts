@@ -1,0 +1,73 @@
+/**
+ * Canvas Helpdesk Role — Custom CSS
+ *
+ * These rules apply ONLY when the companion JavaScript snippet (theme-inject.js)
+ * has detected the Helpdesk role and added the `canvas-role-helpdesk` class to
+ * the <html> element.  All other users are unaffected.
+ *
+ * DEPLOYMENT
+ * ----------
+ * Paste this CSS into Canvas Admin > [Your Account] > Themes > Custom CSS
+ * (alongside the companion theme-inject.js in the Custom JavaScript field).
+ * See the README in this folder for full deployment instructions.
+ *
+ * CUSTOMISATION
+ * -------------
+ * Canvas DOM structures vary between pages and may change across Canvas
+ * releases.  Treat the selectors below as starting points and adjust them
+ * as needed for your institution's Canvas version.  Use your browser's
+ * DevTools inspector on a live Canvas page to verify selector accuracy.
+ */
+
+/* ── Helpdesk badge in the global navigation bar ────────────────────────── */
+/*
+ * Appends "[HD]" after the user's name/avatar link so helpdesk staff can
+ * confirm at a glance which role is active.
+ */
+html.canvas-role-helpdesk #global_nav_profile_link::after {
+    content: ' [HD]';
+    font-size: 0.7em;
+    color: #e66000;
+    vertical-align: super;
+}
+
+/* ── Highlight module completion requirement labels ─────────────────────── */
+/*
+ * Makes the small "requirement" descriptor text beneath each module item
+ * more prominent for helpdesk staff reviewing a module page.
+ */
+html.canvas-role-helpdesk .ig-row .requirement-description {
+    color: #0770a3;
+    font-weight: 600;
+}
+
+/* ── Informational banner on module pages ───────────────────────────────── */
+/*
+ * Inserts a subtle banner at the top of the modules list reminding helpdesk
+ * staff they are viewing the course in helpdesk mode.
+ *
+ * NOTE: The `.context_module` selector targets the first module container.
+ *       Adjust if your Canvas version uses a different class.
+ */
+html.canvas-role-helpdesk #context_modules .context_module:first-child::before {
+    display: block;
+    content: 'Helpdesk View — completion requirements are highlighted in blue';
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    background-color: #e8f4f8;
+    border-left: 4px solid #0770a3;
+    font-size: 0.88em;
+    color: #0770a3;
+    border-radius: 0 4px 4px 0;
+}
+
+/* ── Emphasise locked modules for helpdesk staff ────────────────────────── */
+/*
+ * Adds a subtle orange left border to module items that are locked
+ * (i.e. the student cannot access them yet), making it easier to spot
+ * blocked items during a helpdesk call.
+ */
+html.canvas-role-helpdesk .context_module_item.locked .ig-row {
+    border-left: 3px solid #e66000;
+    padding-left: 6px;
+}
