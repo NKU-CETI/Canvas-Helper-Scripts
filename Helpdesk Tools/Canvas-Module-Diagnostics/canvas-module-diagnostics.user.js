@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas Module Diagnostics
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Adds a Helpdesk Tools panel to Canvas course pages for diagnosing module completion requirement issues
 // @author       NKU CETI
 // @match        https://*.instructure.com/courses/*
