@@ -9,9 +9,8 @@ This repository contains **Tampermonkey userscripts** and utilities for Canvas L
 ```
 Canvas-Helper-Scripts/
 ├── Admin Tools/
-│   └── Canvas-Enrollment-Plugin/
-│       ├── canvas-enrollment-manager.user.js   ← main userscript
-│       └── README.md
+│   ├── Canvas-Enrollment-Plugin/
+│   │   └── canvas-enrollment-manager.user.js   ← main userscript
 │   └── README.md
 └── README.md
 ```
