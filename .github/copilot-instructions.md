@@ -32,6 +32,16 @@ These tools are used by staff who have access to student education records. The 
 - Tools must not transmit student data to any third-party service. All Canvas API calls must go directly to the institution's own Canvas domain.
 - When designing new features, default to requesting the minimum Canvas API permissions and data fields needed. Avoid requesting roster data, grades, or SIS information unless the feature explicitly requires it.
 
+### Agent Session Data Handling
+
+When an AI coding agent (e.g., GitHub Copilot) works in this repository, it may encounter sensitive information in API responses, logs, test fixtures, or user-provided context. The following rules govern what an agent **must never** do with that information:
+
+- **Do not store PII or sensitive data in agent memory.** The `store_memory` tool (or any equivalent persistent-memory mechanism) must only be used for codebase conventions, patterns, and non-sensitive technical facts. Never save student names, user IDs, email addresses, enrollment records, grades, SIS IDs, API tokens, passwords, or any other PII — even in summarised or paraphrased form.
+- **Do not include sensitive data in commit messages, PR descriptions, or code comments.** If a real value must be shown as an example, use a clearly fictional placeholder (e.g., `user_12345`, `student@example.com`).
+- **Treat sensitive data as transient.** Any PII or credentials encountered during a session exist only in the current context window. Do not reference, repeat, or act on them beyond the immediate task at hand.
+- **Do not transmit sensitive data outside the repository's own Canvas domain.** All API calls generated or suggested by an agent must target the institution's own `*.instructure.com` endpoint — never a third-party service.
+- **When in doubt, omit.** If it is unclear whether a value is sensitive, treat it as sensitive and do not persist or share it.
+
 ---
 
 ## Accessibility (WCAG 2.1 AA)
