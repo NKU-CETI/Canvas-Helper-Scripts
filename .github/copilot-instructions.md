@@ -111,7 +111,7 @@ Userscript files must end in `.user.js` so Tampermonkey recognizes them as insta
 
 #### NKU Canvas Domains
 
-Scripts must only run on these three domains (enforced via `@match`):
+Scripts load on any Canvas instance via the `*.instructure.com` wildcard `@match`, but NKU-specific values (role IDs, domain-gated features, etc.) are only guaranteed to work on these three domains. Users on other instances will see a contextual warning at runtime.
 
 | Domain | Environment |
 |---|---|
