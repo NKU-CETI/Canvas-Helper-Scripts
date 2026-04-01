@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas Enrollment Manager
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.7
 // @description  Adds buttons to Canvas course pages to modify your enrollment
 // @author       NKU CETI
 // @match        https://*.instructure.com/courses/*
@@ -16,7 +16,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.5';
+    const SCRIPT_VERSION = '1.7';
     const DEBUG = false;
     const REQUEST_TIMEOUT_MS = 15000;
     const LINK_VALIDATOR_POLL_INTERVAL_MS = 4000;
@@ -25,7 +25,7 @@
     // This covers fast jobs that finish before the first poll can observe them in-progress.
     // 3 polls × 4 s = 12 s maximum wait before showing results.
     const LINK_VALIDATOR_GRACE_POLLS = 3;
-    const DESIGNER_ROLE_ID = 5; // Institution-specific role ID for the Designer role
+    const DESIGNER_ROLE_ID = 6; // NKU's Canvas role ID for the Designer enrollment role (DesignerEnrollment)
     const UPDATE_CHECK_URL = 'https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/Admin%20Tools/Canvas-Enrollment-Plugin/canvas-enrollment-manager.user.js';
     const VERSION_TOOLTIP_BASE = `Canvas Enrollment Manager v${SCRIPT_VERSION}\nManages course enrollment and runs health checks.\nMade for Northern Kentucky University.`;
     const VERSION_CHECK_CACHE_KEY = 'cem_version_check';
@@ -149,8 +149,6 @@
     function showNoPermissionPanel() {
         if (document.getElementById('enrollment-manager-container')) return;
 
-        const isNkuDomain = NKU_DOMAINS.includes(domain);
-
         buttonContainer = document.createElement('div');
         buttonContainer.id = 'enrollment-manager-container';
         Object.assign(buttonContainer.style, {
@@ -169,18 +167,17 @@
         const msg = document.createElement('p');
         Object.assign(msg.style, { margin: '0', fontSize: '0.95em' });
 
-        if (isNkuDomain) {
+        if (NKU_DOMAINS.includes(domain)) {
             msg.innerHTML =
                 'This script requires account admin permissions in Canvas and will not ' +
                 'work for your account. If you think you would have a use for it, please ' +
                 'email <a href="mailto:ceti@nku.edu">ceti@nku.edu</a> to inquire about access.';
         } else {
             msg.textContent =
-                'This script was built for Northern Kentucky University and requires ' +
-                'specific Canvas admin permissions that your account does not appear to have. ' +
-                'If it is not working for you, you will need to investigate the compatibility ' +
-                'and permission requirements on your own — this project does not provide ' +
-                'support for other institutions.';
+                'This script was built for Northern Kentucky University and some features ' +
+                'may not work as intended on other Canvas instances. It requires specific ' +
+                'Canvas admin permissions that your account does not appear to have. Role IDs ' +
+                'and other NKU-specific values will likely differ on your instance.';
         }
 
         buttonContainer.appendChild(msg);
