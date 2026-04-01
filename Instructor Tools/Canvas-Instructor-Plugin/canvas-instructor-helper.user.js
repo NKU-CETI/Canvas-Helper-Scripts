@@ -783,7 +783,7 @@
                 const note = hasMultiple
                     ? ` (using earliest section start: "${earliestEntry.name}", ${dateStr})`
                     : ` (${dateStr})`;
-                container.innerHTML = `⚠️ ${earlyDue.length} assignment(s) due before section start${note}:`;
+                container.textContent = `⚠️ ${earlyDue.length} assignment(s) due before section start${note}:`;
 
                 const list = document.createElement('ul');
                 Object.assign(list.style, { margin: '4px 0 0 0', paddingLeft: '18px' });
