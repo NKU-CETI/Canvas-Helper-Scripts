@@ -593,7 +593,7 @@
     // ─── Enrollment actions ───────────────────────────────────────────────────
 
     function enrollAsHelpdesk(courseId, userId, domain, csrfToken) {
-        log(`Enrolling user ${userId} as Helpdesk in course ${courseId}`);
+        log(`Enrolling as Helpdesk in course ${courseId}`);
 
         const url = `https://${domain}/api/v1/courses/${courseId}/enrollments`;
         const data = {
