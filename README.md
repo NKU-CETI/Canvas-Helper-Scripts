@@ -12,6 +12,7 @@ A collection of Tampermonkey userscripts and utilities for Canvas LMS administra
 | Folder | Description |
 |---|---|
 | [Admin Tools](./Admin%20Tools) | Plugins for Canvas admins and instructional designers — enrollment management, link validation, and more |
+| [Instructor Tools](./Instructor%20Tools) | Plugins for Canvas instructors and TAs — course health checks, link validation, due-date analysis, and unpublished content detection |
 
 ---
 
