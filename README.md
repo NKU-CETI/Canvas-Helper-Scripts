@@ -12,6 +12,7 @@ A collection of Tampermonkey userscripts and utilities for Canvas LMS administra
 | Folder | Description |
 |---|---|
 | [Admin Tools](./Admin%20Tools) | Plugins for Canvas admins and instructional designers — enrollment management, link validation, and more |
+| [Helpdesk Tools](./Helpdesk%20Tools) | Tools for helpdesk staff — module completion diagnostics, student issue lookup, and a Canvas theme for role-specific UI enhancements |
 
 ---
 
