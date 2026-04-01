@@ -15,15 +15,17 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.0';
+    const SCRIPT_VERSION = '1.1';
     const DEBUG = false;
     const REQUEST_TIMEOUT_MS = 15000;
-    const NKU_DOMAINS = ['nku.instructure.com', 'nku.beta.instructure.com', 'nku.test.instructure.com'];
-    // NKU's internal Canvas role ID for the Helpdesk role.
+    // NKU's internal Canvas role ID for the Helpdesk course enrollment role.
     // To find yours: GET https://<domain>/api/v1/accounts/:account_id/roles
-    // Look for the role named "Helpdesk" in the response and use its id field.
-    const HELPDESK_ROLE_ID = 9; // ← Institution-specific: verify via the API call above
+    const HELPDESK_ROLE_ID = 177; // Course enrollment role: "Helpdesk"
     const HELPDESK_ROLE_NAME = 'Helpdesk'; // Display name of the role in Canvas
+    // Account-level admin role that grants permission to enroll/unenroll helpdesk
+    // workers.  Only users who have this role in the current course will see the
+    // Helpdesk Tools panel.
+    const ENROLL_HELPDESK_ADMIN_ROLE_ID = 178; // Admin permission role: "Enroll Help Desk"
     const UPDATE_CHECK_URL = 'https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/Helpdesk%20Tools/Canvas-Module-Diagnostics/canvas-module-diagnostics.user.js';
     const VERSION_TOOLTIP_BASE = `Canvas Module Diagnostics v${SCRIPT_VERSION}\nDiagnoses module completion requirement issues for helpdesk staff.\nMade for Northern Kentucky University.`;
     const VERSION_CHECK_CACHE_KEY = 'cmd_version_check';
@@ -126,83 +128,35 @@
 
     // ─── Permission check ─────────────────────────────────────────────────────
 
-    // Checks whether the current user has account-admin access, which is required
-    // to manage course enrollments and read student completion data.
+    // Checks whether the current user has the "Enroll Help Desk" admin role
+    // (role_id 178) in this course.  Only users with that role see the panel.
+    // The same API response is used to detect whether the user is already
+    // enrolled as Helpdesk (role_id 177) so we avoid a second network call.
     function checkPermissionsAndProceed() {
-        log('Checking account admin permissions');
-        const url = `https://${domain}/api/v1/accounts?per_page=1`;
-        makeApiCall(url, 'GET', null, getCsrfToken(),
-            (accounts) => {
-                if (Array.isArray(accounts) && accounts.length > 0) {
-                    log('User has account admin access, proceeding');
-                    fetchEnrollmentAndInit();
-                } else {
-                    log('User has no account admin access');
-                    showNoPermissionPanel();
-                }
-            },
-            (error) => {
-                log('Permission check failed:', error);
-                showNoPermissionPanel();
-            }
-        );
-    }
-
-    function showNoPermissionPanel() {
-        if (document.getElementById('module-diagnostics-container')) return;
-
-        const isNkuDomain = NKU_DOMAINS.includes(domain);
-
-        panelContainer = document.createElement('div');
-        panelContainer.id = 'module-diagnostics-container';
-        Object.assign(panelContainer.style, {
-            margin: '10px 0',
-            padding: '10px',
-            backgroundColor: '#f5f5f5',
-            borderRadius: '4px',
-            border: '1px solid #ddd',
-        });
-
-        const title = document.createElement('h3');
-        title.textContent = 'Helpdesk Tools';
-        Object.assign(title.style, { margin: '0 0 8px 0' });
-        panelContainer.appendChild(title);
-
-        const msg = document.createElement('p');
-        Object.assign(msg.style, { margin: '0', fontSize: '0.95em' });
-
-        if (isNkuDomain) {
-            msg.innerHTML =
-                'This script requires account admin permissions in Canvas. ' +
-                'If you believe you need access, please contact ' +
-                '<a href="mailto:ceti@nku.edu">ceti@nku.edu</a>.';
-        } else {
-            msg.textContent =
-                'This script was built for Northern Kentucky University and requires ' +
-                'specific Canvas admin permissions. Your account does not appear to have access.';
-        }
-
-        panelContainer.appendChild(msg);
-        insertPanelContainer();
-    }
-
-    // ─── Enrollment status check ──────────────────────────────────────────────
-
-    function fetchEnrollmentAndInit() {
-        log('Fetching current enrollment status');
+        log('Checking Enroll Help Desk permission (role', ENROLL_HELPDESK_ADMIN_ROLE_ID, ')');
         const url = `https://${domain}/api/v1/courses/${courseId}/enrollments?user_id=${userId}`;
         makeApiCall(url, 'GET', null, getCsrfToken(),
             (enrollments) => {
-                const active = enrollments.filter(e =>
-                    e.role === HELPDESK_ROLE_NAME ||
-                    e.role_id === HELPDESK_ROLE_ID ||
-                    e.type === 'TeacherEnrollment' ||
-                    e.type === 'DesignerEnrollment');
-                initializePanel(active.length > 0);
+                if (!Array.isArray(enrollments)) {
+                    log('Unexpected enrollments response, hiding panel');
+                    return;
+                }
+                const hasAdminRole = enrollments.some(
+                    e => e.role_id === ENROLL_HELPDESK_ADMIN_ROLE_ID);
+                if (!hasAdminRole) {
+                    log('User does not have Enroll Help Desk role, hiding panel');
+                    // No panel shown — the script is silent for users without the role.
+                    return;
+                }
+                log('User has Enroll Help Desk role, proceeding');
+                const isEnrolled = enrollments.some(
+                    e => e.role_id === HELPDESK_ROLE_ID);
+                initializePanel(isEnrolled);
             },
             (error) => {
-                err('Could not fetch enrollment status, showing full panel:', error);
-                initializePanel(null); // null = unknown, show everything
+                log('Permission check failed:', error);
+                // Silently exit — do not render a panel for users who may not
+                // have access or are not enrolled in the course at all.
             }
         );
     }
@@ -658,10 +612,7 @@
         makeApiCall(url, 'GET', null, csrfToken,
             (enrollments) => {
                 const targets = enrollments.filter(e =>
-                    e.role === HELPDESK_ROLE_NAME ||
-                    e.role_id === HELPDESK_ROLE_ID ||
-                    e.type === 'TeacherEnrollment' ||
-                    e.type === 'DesignerEnrollment');
+                    e.role_id === HELPDESK_ROLE_ID);
 
                 if (targets.length === 0) {
                     showMessage('No helpdesk enrollments found to remove.', 'warning');

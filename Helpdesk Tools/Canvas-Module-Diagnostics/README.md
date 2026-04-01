@@ -3,7 +3,7 @@
 A Tampermonkey userscript that adds a **Helpdesk Tools** panel to Canvas course pages, allowing helpdesk staff to enroll themselves in courses and quickly diagnose module completion requirement issues that prevent students from progressing.
 
 > **⚠️ Made for Northern Kentucky University (NKU)**
-> This script uses NKU-specific Canvas role IDs and has been tested against NKU's Canvas instance (`nku.instructure.com`). It may not work correctly at other institutions without code changes (particularly the `HELPDESK_ROLE_ID` constant).
+> This script uses NKU-specific Canvas role IDs and has been tested against NKU's Canvas instance (`nku.instructure.com`). It may not work correctly at other institutions without code changes (particularly `HELPDESK_ROLE_ID` and `ENROLL_HELPDESK_ADMIN_ROLE_ID`).
 
 ---
 
@@ -12,7 +12,7 @@ A Tampermonkey userscript that adds a **Helpdesk Tools** panel to Canvas course 
 | Feature | Description |
 |---|---|
 | Enroll as Helpdesk | Adds yourself to a course with the Helpdesk role |
-| Unenroll Completely | Removes all your helpdesk/teacher/designer enrollments from a course |
+| Unenroll Completely | Removes your Helpdesk enrollment from a course |
 | Scan Modules | Lists every module that has completion requirements, with direct links to each required item |
 | Diagnose Student Issues | Search for a student by name and see exactly which completion requirements they have not yet met |
 
@@ -71,14 +71,16 @@ The script is configured for automatic updates via Tampermonkey. When a new vers
 
 | Version | Notes |
 |---|---|
+| 1.1 | Set correct NKU role IDs (Helpdesk = 177, Enroll Help Desk admin = 178); replaced generic account-admin permission check with a course-enrollment check for role 178; unenroll now only targets role 177 |
 | 1.0 | Initial release — enroll/unenroll as Helpdesk, scan module completion requirements, diagnose individual student completion issues |
 
 ---
 
 ## Notes for Developers
 
-- **`HELPDESK_ROLE_ID = 9`** — This is NKU's internal Canvas role ID for the Helpdesk role. Other institutions will have a different value. Find yours with `GET /api/v1/accounts/:account_id/roles` and look for the role named "Helpdesk" (or your equivalent).
-- The script uses the same account-admin permission check as the Canvas Enrollment Manager — users must have admin access to at least one Canvas account to use it.
+- **`HELPDESK_ROLE_ID = 177`** — NKU's Canvas course enrollment role ID for Helpdesk workers. Other institutions will have a different value. Find yours with `GET /api/v1/accounts/:account_id/roles`.
+- **`ENROLL_HELPDESK_ADMIN_ROLE_ID = 178`** — NKU's Canvas role ID for the "Enroll Help Desk" admin permission. The Helpdesk Tools panel is only shown to users who have this role in the current course. Other institutions will have a different value.
+- The permission check calls `GET /api/v1/courses/:id/enrollments?user_id=self` and looks for `role_id === 178` in the response. The same response is used to detect whether the user is already enrolled as Helpdesk (`role_id === 177`).
 - `DEBUG = false` by default. Set to `true` in the source to enable verbose console logging.
 - The student-completion check works by calling `GET /api/v1/courses/:id/modules?student_id=:id&include[]=items`, which returns each item's `completion_requirement.completed` boolean from the student's perspective.
 
