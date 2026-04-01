@@ -780,9 +780,19 @@
                 earlyDue.slice(0, 5).forEach(a => {
                     const li = document.createElement('li');
                     const due = new Date(a.due_at).toLocaleDateString();
-                    li.innerHTML =
-                        `<a href="https://${domain}/courses/${courseId}/assignments/${a.id}" target="_blank">${a.name}</a>` +
-                        ` <span style="color:#888">(due ${due})</span>`;
+
+                    const link = document.createElement('a');
+                    link.href = `https://${domain}/courses/${courseId}/assignments/${a.id}`;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    link.textContent = a.name;
+
+                    const dueSpan = document.createElement('span');
+                    dueSpan.style.color = '#888';
+                    dueSpan.textContent = ` (due ${due})`;
+
+                    li.appendChild(link);
+                    li.appendChild(dueSpan);
                     list.appendChild(li);
                 });
 
