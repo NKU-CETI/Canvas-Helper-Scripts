@@ -53,9 +53,9 @@ Version numbering follows this convention:
 
 | Version | Notes |
 |---|---|
-| 2.0 | Added grade weighting diagnostic, expand/collapse panel toggle, and NKU CETI appointment booking link; removed missing due dates and unpublished content checks |
+| 1.1 | Current release — added grade weighting diagnostic, expand/collapse panel toggle, and NKU CETI appointment booking link; removed missing due dates and unpublished content checks |
 | 1.0 | Initial release — link validator, due-date checker, missing due dates, unpublished content check, Canvas status indicator, and GitHub version check |
-
+| 2.0 (deprecated) | Withdrawn release that was briefly versioned higher than 1.1; superseded by 1.1 to maintain consistent Tampermonkey update behavior |
 ---
 
 ## Notes for Developers
