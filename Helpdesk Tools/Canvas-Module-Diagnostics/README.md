@@ -18,16 +18,40 @@ A Tampermonkey userscript that adds a **Helpdesk Tools** panel to Canvas course 
 
 ---
 
+## What is Tampermonkey?
+
+[Tampermonkey](https://www.tampermonkey.net/) is a free browser extension that lets you install and run small JavaScript programs called **userscripts**. A userscript runs automatically when you visit a matching website, allowing it to add buttons, panels, or other features to pages without you having to do anything beyond the initial install. Userscripts are commonly used by power users and staff to streamline repetitive workflows — in this case, enrolling into Canvas courses and diagnosing module completion issues without navigating through multiple Canvas menus.
+
+Tampermonkey is available for Chrome, Firefox, Edge, Safari, and Opera.
+
+---
+
 ## Installation
 
-1. Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension.
-2. Click the link below to install the script directly:
+### Step 1 — Install Tampermonkey
 
-   **[Install Canvas Module Diagnostics](https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/Helpdesk%20Tools/Canvas-Module-Diagnostics/canvas-module-diagnostics.user.js)**
+> **Chrome users:** Chrome requires you to enable **Developer mode** (or the newer **Allow User Scripts** toggle) before Tampermonkey can run userscripts from the Chrome Web Store.
+>
+> 1. Open Chrome and go to `chrome://extensions`.
+> 2. In the top-right corner, toggle **Developer mode** on (Chrome 120 and earlier) **or** look for an **Allow user scripts** toggle and enable it (Chrome 121+, shown near the top of the Extensions page).
+> 3. Install Tampermonkey from the [Chrome Web Store](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo).
+> 4. After installation, click the Tampermonkey puzzle-piece icon in the toolbar and pin it for easy access.
 
-   Tampermonkey will open a confirmation page — click **Install**.
+For **Firefox**, **Edge**, or **Opera**, simply install Tampermonkey from the relevant extension store — no additional settings change is needed.
 
-3. Navigate to any Canvas course page (`https://*.instructure.com/courses/*`). The **Helpdesk Tools** panel appears automatically in the left sidebar.
+### Step 2 — Install the script
+
+Click the link below to install the script directly:
+
+**[Install Canvas Module Diagnostics](https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/Helpdesk%20Tools/Canvas-Module-Diagnostics/canvas-module-diagnostics.user.js)**
+
+Tampermonkey will open a confirmation page showing the script's metadata. Click **Install**.
+
+### Step 3 — Use the tool
+
+Navigate to a Canvas course home page or settings page (`https://*.instructure.com/courses/<id>` or `.../courses/<id>/settings`). The **Helpdesk Tools** panel appears automatically.
+
+> **Note:** The panel intentionally appears only on the course **home page** and **settings page**. It will not appear inside Speedgrader, the Gradebook, or other course sub-pages.
 
 ---
 
@@ -71,6 +95,7 @@ The script is configured for automatic updates via Tampermonkey. When a new vers
 
 | Version | Notes |
 |---|---|
+| 1.2 | Panel now only appears on the course home page and settings page; no longer shows up in Speedgrader, Gradebook, or other course sub-pages |
 | 1.1 | Set correct NKU role IDs (Helpdesk = 177, Enroll Help Desk admin = 178); replaced generic account-admin permission check with a course-enrollment check for role 178; unenroll now only targets role 177 |
 | 1.0 | Initial release — enroll/unenroll as Helpdesk, scan module completion requirements, diagnose individual student completion issues |
 
