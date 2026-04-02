@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas Module Diagnostics
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.2
 // @description  Adds a Helpdesk Tools panel to Canvas course pages for diagnosing module completion requirement issues
 // @author       NKU CETI
 // @match        https://*.instructure.com/courses/*
@@ -15,7 +15,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.1';
+    const SCRIPT_VERSION = '1.2';
     const DEBUG = false;
     const REQUEST_TIMEOUT_MS = 15000;
     // NKU's internal Canvas role ID for the Helpdesk course enrollment role.
@@ -60,6 +60,16 @@
 
     courseId = courseIdMatch[1];
     log('Found course ID:', courseId);
+
+    // Only show the panel on the course home page and the course settings page.
+    // Speedgrader, modules, assignments, and other sub-pages should be unaffected.
+    const path = window.location.pathname;
+    const isCoursePage = /^\/courses\/\d+\/?$/.test(path);
+    const isSettingsPage = /^\/courses\/\d+\/settings/.test(path);
+    if (!isCoursePage && !isSettingsPage) {
+        log('Not on course home or settings page, exiting');
+        return;
+    }
 
     // Try to get user ID from the page synchronously (methods 1–3)
     userId = getUserId();
