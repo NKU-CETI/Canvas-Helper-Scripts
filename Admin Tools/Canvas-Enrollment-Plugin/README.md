@@ -18,16 +18,40 @@ A Tampermonkey userscript that adds an **Enrollment Management** panel to Canvas
 
 ---
 
+## What is Tampermonkey?
+
+[Tampermonkey](https://www.tampermonkey.net/) is a free browser extension that lets you install and run small JavaScript programs called **userscripts**. A userscript runs automatically when you visit a matching website, allowing it to add buttons, panels, or other features to pages without you having to do anything beyond the initial install. Userscripts are commonly used by power users and staff to streamline repetitive workflows — in this case, managing Canvas course enrollments without navigating through multiple Canvas menus.
+
+Tampermonkey is available for Chrome, Firefox, Edge, Safari, and Opera.
+
+---
+
 ## Installation
 
-1. Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension.
-2. Click the link below to install the script directly:
+### Step 1 — Install Tampermonkey
 
-   **[Install Canvas Enrollment Manager](https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/Admin%20Tools/Canvas-Enrollment-Plugin/canvas-enrollment-manager.user.js)**
+> **Chrome users:** Chrome requires you to enable **Developer mode** (or the newer **Allow User Scripts** toggle) before Tampermonkey can run userscripts from the Chrome Web Store.
+>
+> 1. Open Chrome and go to `chrome://extensions`.
+> 2. In the top-right corner, toggle **Developer mode** on (Chrome 120 and earlier) **or** look for an **Allow user scripts** toggle and enable it (Chrome 121+, shown near the top of the Extensions page).
+> 3. Install Tampermonkey from the [Chrome Web Store](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo).
+> 4. After installation, click the Tampermonkey puzzle-piece icon in the toolbar and pin it for easy access.
 
-   Tampermonkey will open a confirmation page — click **Install**.
+For **Firefox**, **Edge**, or **Opera**, simply install Tampermonkey from the relevant extension store — no additional settings change is needed.
 
-3. Navigate to any Canvas course page (`https://*.instructure.com/courses/*`). The panel appears automatically in the left sidebar.
+### Step 2 — Install the script
+
+Click the link below to install the script directly:
+
+**[Install Canvas Enrollment Manager](https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/Admin%20Tools/Canvas-Enrollment-Plugin/canvas-enrollment-manager.user.js)**
+
+Tampermonkey will open a confirmation page showing the script's metadata. Click **Install**.
+
+### Step 3 — Use the tool
+
+Navigate to a Canvas course home page or settings page (`https://*.instructure.com/courses/<id>` or `.../courses/<id>/settings`). The **Enrollment Management** panel appears automatically.
+
+> **Note:** The panel intentionally appears only on the course **home page** and **settings page**. It will not appear inside Speedgrader, the Gradebook, or other course sub-pages.
 
 ---
 
@@ -49,6 +73,7 @@ Version numbering follows this convention:
 
 | Version | Notes |
 |---|---|
+| 1.8 | Panel now only appears on the course home page and settings page; no longer shows up in Speedgrader, Gradebook, or other course sub-pages |
 | 1.7 | Reverted `@match` to `*.instructure.com` wildcard; restored contextual non-NKU warning message for users on other Canvas instances |
 | 1.6 | Restricted `@match` to NKU domains only (`nku.instructure.com`, `nku.beta.instructure.com`, `nku.test.instructure.com`); fixed `DESIGNER_ROLE_ID` from 5 to 6 (id 5 is TaEnrollment; id 6 is DesignerEnrollment) |
 | 1.5 | Added GitHub version check: the ℹ️ tooltip now shows ✅ (up to date) or 🔔 (update available) by fetching the latest `@version` from GitHub on page load |
