@@ -352,7 +352,7 @@
         const moduleSummaryDiv = document.createElement('div');
         Object.assign(moduleSummaryDiv.style, { fontSize: '0.9em', marginTop: '4px' });
         moduleSummaryDiv.textContent = 'Click "Scan Modules" to check completion requirements.';
-        moduleSummaryDiv.style.color = '#888';
+        moduleSummaryDiv.style.color = '#595959';
         container.appendChild(moduleSummaryDiv);
 
         scanBtn.addEventListener('click', () => {

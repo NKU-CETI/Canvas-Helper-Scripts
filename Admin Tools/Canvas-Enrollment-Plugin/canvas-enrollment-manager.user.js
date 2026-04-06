@@ -426,7 +426,7 @@
 
             // Due-date check row
             const dueDateDiv = document.createElement('div');
-            Object.assign(dueDateDiv.style, { fontSize: '0.9em', color: '#555' });
+            Object.assign(dueDateDiv.style, { fontSize: '0.9em', color: '#404040' });
             dueDateDiv.textContent = 'Checking due dates…';
             healthBodyEl.appendChild(dueDateDiv);
 
