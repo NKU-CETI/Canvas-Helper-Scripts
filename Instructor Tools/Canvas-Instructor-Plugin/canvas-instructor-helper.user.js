@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas Instructor Helper
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.4
 // @description  Adds a Course Health panel to Canvas course pages for instructors
 // @author       NKU CETI
 // @match        https://*.instructure.com/courses/*
@@ -16,7 +16,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.2';
+    const SCRIPT_VERSION = '1.4';
     const DEBUG = false;
     const REQUEST_TIMEOUT_MS = 15000;
     const LINK_VALIDATOR_POLL_INTERVAL_MS = 4000;
@@ -33,6 +33,17 @@
     const VERSION_CHECK_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
     const CETI_BOOKING_URL = 'https://outlook.office.com/book/CenterforExcellenceinTeachingandInnovation@mymailnku.onmicrosoft.com/?ismsaljsauthenabled';
     const PANEL_COLLAPSED_KEY = 'cih_panel_collapsed';
+    // Canvas status page components to monitor; others are excluded to avoid
+    // showing alerts for services NKU does not use.
+    const RELEVANT_COMPONENTS = new Set([
+        'Canvas LMS',
+        'Canvas Commons',
+        'Canvas Data 2',
+        'Canvas Mobile',
+        'Canvas Portfolio',
+        'AWS Region us-east-1',
+        'Support Tools',
+    ]);
 
     const log = (...args) => DEBUG && console.log('Canvas Instructor Helper:', ...args);
     const warn = (...args) => console.warn('Canvas Instructor Helper:', ...args);
@@ -176,7 +187,7 @@
         });
 
         const title = document.createElement('h3');
-        title.textContent = 'Instructor Tools';
+        title.textContent = 'Instructor Toolkit';
         Object.assign(title.style, { margin: '0 0 8px 0' });
         panelContainer.appendChild(title);
 
@@ -239,7 +250,7 @@
         });
 
         const title = document.createElement('h3');
-        title.textContent = 'Instructor Tools';
+        title.textContent = 'Instructor Toolkit';
         title.style.margin = '0';
 
         titleLeft.appendChild(collapseBtn);
@@ -251,6 +262,7 @@
         statusLink.href = 'https://status.instructure.com';
         statusLink.target = '_blank';
         statusLink.title = 'Checking Canvas status…';
+        statusLink.setAttribute('aria-label', 'Canvas status: checking…');
         Object.assign(statusLink.style, {
             fontSize: '1.1em',
             textDecoration: 'none',
@@ -280,12 +292,20 @@
         panelBody.style.display = isCollapsed ? 'none' : '';
         collapseBtn.textContent = isCollapsed ? '▶' : '▼';
         collapseBtn.title = isCollapsed ? 'Expand panel' : 'Collapse panel';
+        collapseBtn.setAttribute('aria-controls', 'instructor-helper-body');
+        collapseBtn.setAttribute('aria-expanded', String(!isCollapsed));
+        collapseBtn.setAttribute('aria-label',
+            isCollapsed ? 'Expand Instructor Toolkit panel' : 'Collapse Instructor Toolkit panel');
 
         collapseBtn.addEventListener('click', () => {
             const nowCollapsed = panelBody.style.display !== 'none';
             panelBody.style.display = nowCollapsed ? 'none' : '';
             collapseBtn.textContent = nowCollapsed ? '▶' : '▼';
             collapseBtn.title = nowCollapsed ? 'Expand panel' : 'Collapse panel';
+            collapseBtn.setAttribute('aria-expanded', String(!nowCollapsed));
+            collapseBtn.setAttribute('aria-label', nowCollapsed
+                ? 'Expand Instructor Toolkit panel'
+                : 'Collapse Instructor Toolkit panel');
             setPanelCollapsed(nowCollapsed);
         });
 
@@ -479,21 +499,63 @@
                     } catch (e) {
                         el.textContent = '⚪';
                         el.title = 'Could not parse Canvas status';
+                        el.setAttribute('aria-label', 'Canvas status: unavailable');
                     }
                 } else {
                     el.textContent = '⚪';
                     el.title = 'Could not fetch Canvas status';
+                    el.setAttribute('aria-label', 'Canvas status: unavailable');
                 }
             },
-            onerror() { el.textContent = '⚪'; el.title = 'Could not reach status.instructure.com'; },
-            ontimeout() { el.textContent = '⚪'; el.title = 'Canvas status request timed out'; },
+            onerror() { el.textContent = '⚪'; el.title = 'Could not reach status.instructure.com'; el.setAttribute('aria-label', 'Canvas status: unavailable'); },
+            ontimeout() { el.textContent = '⚪'; el.title = 'Canvas status request timed out'; el.setAttribute('aria-label', 'Canvas status: unavailable'); },
         });
     }
 
     function updateStatusIndicator(el, data) {
-        const indicator = data?.status?.indicator ?? 'none';
-        const description = data?.status?.description ?? 'Unknown';
+        const allComponents = data?.components ?? [];
         const incidents = data?.incidents ?? [];
+
+        // Filter to only the components NKU uses
+        const relevant = allComponents.filter(c => RELEVANT_COMPONENTS.has(c.name));
+
+        // If no known component names matched (e.g. Statuspage renamed components or
+        // the API omitted the components array), fall back to the aggregate indicator
+        // so we never falsely show 🟢 when status is actually unknown.
+        if (relevant.length === 0) {
+            const aggIndicator = data?.status?.indicator ?? 'none';
+            const aggDescription = data?.status?.description ?? 'Unknown';
+            el.textContent = aggIndicator === 'none' ? '🟢' : aggIndicator === 'minor' ? '🟡' : '🔴';
+            el.title = `Canvas Status: ${aggDescription}`;
+            el.setAttribute('aria-label', `Canvas status: ${aggDescription}`);
+            return;
+        }
+
+        // Determine worst status among relevant components.
+        // Statuspage component statuses: operational, degraded_performance,
+        // partial_outage, major_outage, under_maintenance.
+        const STATUS_RANK = {
+            operational: 0,
+            under_maintenance: 1,
+            degraded_performance: 2,
+            partial_outage: 2,
+            major_outage: 3,
+        };
+        const STATUS_DESCRIPTIONS = {
+            operational: 'All Systems Operational',
+            under_maintenance: 'Under Maintenance',
+            degraded_performance: 'Partial Disruption',
+            partial_outage: 'Partial Disruption',
+            major_outage: 'Major Disruption',
+        };
+        let worstRank = 0;
+        let worstStatus = 'operational';
+        relevant.forEach(c => {
+            const rank = STATUS_RANK[c.status] ?? 0;
+            if (rank > worstRank) { worstRank = rank; worstStatus = c.status; }
+        });
+
+        const indicator = worstRank === 0 ? 'none' : worstRank >= 3 ? 'major' : 'minor';
 
         if (indicator === 'none') {
             el.textContent = '🟢';
@@ -503,14 +565,23 @@
             el.textContent = '🔴';
         }
 
+        // Filter incidents to those affecting at least one relevant component
+        const relevantIds = new Set(relevant.map(c => c.id));
+        const relevantIncidents = incidents.filter(inc =>
+            (inc.components ?? []).some(c => relevantIds.has(c.id))
+        );
+
+        const description = STATUS_DESCRIPTIONS[worstStatus] ?? 'Degraded';
+
         let tooltip = `Canvas Status: ${description}`;
-        if (incidents.length > 0) {
+        if (relevantIncidents.length > 0) {
             tooltip += '\n\nActive Incidents:';
-            incidents.slice(0, 5).forEach(inc => {
+            relevantIncidents.slice(0, 5).forEach(inc => {
                 tooltip += `\n• ${inc.name} [${inc.status}]`;
             });
         }
         el.title = tooltip;
+        el.setAttribute('aria-label', `Canvas status: ${description}`);
     }
 
     // ─── GitHub version check ─────────────────────────────────────────────────
