@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Canvas Module Diagnostics
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  Adds a Helpdesk Tools panel to Canvas course pages for diagnosing module completion requirement issues
 // @author       NKU CETI
 // @match        https://*.instructure.com/courses/*
 // @grant        GM_xmlhttpRequest
 // @connect      *.instructure.com
+// @connect      status.instructure.com
 // @connect      raw.githubusercontent.com
 // @updateURL    https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/Helpdesk%20Tools/Canvas-Module-Diagnostics/canvas-module-diagnostics.user.js
 // @downloadURL  https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/Helpdesk%20Tools/Canvas-Module-Diagnostics/canvas-module-diagnostics.user.js
@@ -15,7 +16,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.2';
+    const SCRIPT_VERSION = '1.3';
     const DEBUG = false;
     const REQUEST_TIMEOUT_MS = 15000;
     // NKU's internal Canvas role ID for the Helpdesk course enrollment role.
@@ -31,6 +32,8 @@
     const VERSION_TOOLTIP_BASE = `Canvas Module Diagnostics v${SCRIPT_VERSION}\nDiagnoses module completion requirement issues for helpdesk staff.\nMade for Northern Kentucky University.`;
     const VERSION_CHECK_CACHE_KEY = 'cmd_version_check';
     const VERSION_CHECK_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+    const CANVAS_STATUS_URL = 'https://status.instructure.com/api/v2/summary.json';
+    const COLLAPSED_STORAGE_KEY = 'module_diagnostics_collapsed';
 
     // Human-readable labels for each Canvas completion requirement type
     const COMPLETION_TYPE_LABELS = {
@@ -50,6 +53,12 @@
     let courseId;
     let userId;
     let panelContainer;
+    let toggleBtn = null;
+    let panelBodyEl = null;
+    let titleBadgeEl = null;
+    // Per-check issue flags; recomputed on every result so the badge clears
+    // automatically when a re-run reports no issues.
+    const panelIssues = { canvasStatus: false };
 
     // Only run on course pages
     const courseIdMatch = window.location.pathname.match(/\/courses\/(\d+)/);
@@ -188,6 +197,7 @@
     function initializePanel(isEnrolled) {
         if (document.getElementById('module-diagnostics-container')) return;
 
+        panelIssues.canvasStatus = false;
         panelContainer = document.createElement('div');
         panelContainer.id = 'module-diagnostics-container';
         Object.assign(panelContainer.style, {
@@ -198,7 +208,7 @@
             border: '1px solid #ddd',
         });
 
-        // Title row with version icon on the right
+        // ── Title row (always visible, never collapses) ────────────────────────
         const titleRow = document.createElement('div');
         Object.assign(titleRow.style, {
             display: 'flex',
@@ -207,19 +217,94 @@
             marginBottom: '8px',
         });
 
+        // Left group: chevron toggle + title
+        let isCollapsed = false;
+        try {
+            isCollapsed = localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true';
+        } catch (error) {
+            isCollapsed = false;
+        }
+        toggleBtn = document.createElement('button');
+        toggleBtn.textContent = isCollapsed ? '▶' : '▼';
+        toggleBtn.setAttribute('aria-expanded', String(!isCollapsed));
+        toggleBtn.setAttribute('aria-controls', 'module-diagnostics-body');
+        toggleBtn.setAttribute('aria-label',
+            isCollapsed ? 'Expand Helpdesk Tools panel' : 'Collapse Helpdesk Tools panel');
+        Object.assign(toggleBtn.style, {
+            background: 'none',
+            border: 'none',
+            padding: '0',
+            marginRight: '4px',
+            cursor: 'pointer',
+            fontSize: '0.85em',
+            color: '#555',
+            lineHeight: '1',
+            flexShrink: '0',
+        });
+
         const title = document.createElement('h3');
         title.textContent = 'Helpdesk Tools';
         title.style.margin = '0';
-        titleRow.appendChild(title);
+
+        const titleLeft = document.createElement('div');
+        Object.assign(titleLeft.style, { display: 'flex', alignItems: 'center' });
+        titleLeft.appendChild(toggleBtn);
+        titleLeft.appendChild(title);
+        titleRow.appendChild(titleLeft);
+
+        // Right group: issue badge + version icon + Canvas status link
+        titleBadgeEl = document.createElement('span');
+        titleBadgeEl.textContent = '⚠️';
+        titleBadgeEl.title = 'Issues detected — expand panel for details';
+        titleBadgeEl.setAttribute('aria-label', 'Issues detected — expand panel for details');
+        Object.assign(titleBadgeEl.style, { display: 'none', fontSize: '0.85em', cursor: 'default' });
+
+        const statusLink = document.createElement('a');
+        statusLink.textContent = '⚪';
+        statusLink.href = 'https://status.instructure.com';
+        statusLink.target = '_blank';
+        statusLink.rel = 'noopener noreferrer';
+        statusLink.title = 'Checking Canvas status…';
+        statusLink.setAttribute('aria-label', 'Canvas status: checking…');
+        Object.assign(statusLink.style, {
+            fontSize: '1.1em',
+            textDecoration: 'none',
+            cursor: 'pointer',
+        });
 
         const versionIcon = document.createElement('span');
         versionIcon.textContent = 'ℹ️';
         versionIcon.title = `${VERSION_TOOLTIP_BASE}\nChecking for updates…`;
+        versionIcon.setAttribute('aria-label', `Canvas Module Diagnostics v${SCRIPT_VERSION} — checking for updates`);
         Object.assign(versionIcon.style, { fontSize: '1em', cursor: 'default' });
-        titleRow.appendChild(versionIcon);
 
+        const rightIcons = document.createElement('div');
+        Object.assign(rightIcons.style, { display: 'flex', alignItems: 'center', gap: '6px' });
+        rightIcons.appendChild(titleBadgeEl);
+        rightIcons.appendChild(versionIcon);
+        rightIcons.appendChild(statusLink);
+        titleRow.appendChild(rightIcons);
         panelContainer.appendChild(titleRow);
+
+        fetchCanvasStatus(statusLink);
         fetchLatestVersion(versionIcon);
+
+        // ── Panel body (collapses when toggle is clicked) ──────────────────────
+        panelBodyEl = document.createElement('div');
+        panelBodyEl.id = 'module-diagnostics-body';
+        if (isCollapsed) panelBodyEl.style.display = 'none';
+
+        toggleBtn.addEventListener('click', () => {
+            const nowCollapsed = panelBodyEl.style.display !== 'none';
+            panelBodyEl.style.display = nowCollapsed ? 'none' : '';
+            toggleBtn.textContent = nowCollapsed ? '▶' : '▼';
+            toggleBtn.setAttribute('aria-expanded', String(!nowCollapsed));
+            toggleBtn.setAttribute('aria-label', nowCollapsed
+                ? 'Expand Helpdesk Tools panel'
+                : 'Collapse Helpdesk Tools panel');
+            try { localStorage.setItem(COLLAPSED_STORAGE_KEY, String(nowCollapsed)); } catch (_) {}
+            updateTitleBadge();
+        });
 
         // ── Enrollment section ────────────────────────────────────────────────
 
@@ -228,11 +313,11 @@
             const enrollButton = createButton('Enroll as Helpdesk', 'primary');
             enrollButton.addEventListener('click', () => {
                 const uid = getUserId() || userId;
-                if (!uid) { showMessage('Unable to determine user ID', 'error'); return; }
+                if (!uid) { showMessage('Unable to determine user ID', 'error', enrollButton); return; }
                 setButtonsDisabled(true);
                 enrollAsHelpdesk(courseId, uid, domain, getCsrfToken());
             });
-            panelContainer.appendChild(enrollButton);
+            panelBodyEl.appendChild(enrollButton);
         }
 
         // Show unenroll button when enrolled (or status unknown)
@@ -240,25 +325,26 @@
             const unenrollButton = createButton('Unenroll Completely', 'danger');
             unenrollButton.addEventListener('click', () => {
                 const uid = getUserId() || userId;
-                if (!uid) { showMessage('Unable to determine user ID', 'error'); return; }
+                if (!uid) { showMessage('Unable to determine user ID', 'error', unenrollButton); return; }
                 setButtonsDisabled(true);
                 unenrollCompletely(courseId, uid, domain, getCsrfToken());
             });
-            panelContainer.appendChild(unenrollButton);
+            panelBodyEl.appendChild(unenrollButton);
         }
 
         // ── Module Completion Diagnostics section ─────────────────────────────
         const sep = document.createElement('hr');
         Object.assign(sep.style, { margin: '10px 0', border: 'none', borderTop: '1px solid #ddd' });
-        panelContainer.appendChild(sep);
+        panelBodyEl.appendChild(sep);
 
         const diagTitle = document.createElement('h4');
         diagTitle.textContent = 'Module Completion Diagnostics';
         Object.assign(diagTitle.style, { margin: '0 0 8px 0', fontSize: '1em' });
-        panelContainer.appendChild(diagTitle);
+        panelBodyEl.appendChild(diagTitle);
 
-        buildModuleDiagnosticsUI(panelContainer);
+        buildModuleDiagnosticsUI(panelBodyEl);
 
+        panelContainer.appendChild(panelBodyEl);
         insertPanelContainer();
     }
 
@@ -272,10 +358,13 @@
 
         const moduleSummaryDiv = document.createElement('div');
         Object.assign(moduleSummaryDiv.style, { fontSize: '0.9em', marginTop: '4px' });
+        moduleSummaryDiv.textContent = 'Click "Scan Modules" to check completion requirements.';
+        moduleSummaryDiv.style.color = '#595959';
         container.appendChild(moduleSummaryDiv);
 
         scanBtn.addEventListener('click', () => {
             scanBtn.disabled = true;
+            moduleSummaryDiv.style.color = '';
             moduleSummaryDiv.textContent = 'Scanning modules…';
             scanModules(scanBtn, moduleSummaryDiv);
         });
@@ -790,7 +879,7 @@
         return btn;
     }
 
-    function showMessage(message, type) {
+    function showMessage(message, type, returnFocusEl = null) {
         if (!panelContainer || !document.getElementById('module-diagnostics-container')) {
             err('Cannot show message — panel container not in DOM');
             return;
@@ -799,6 +888,7 @@
         div.className = `alert alert-${type}`;
         div.textContent = message;
         div.style.marginBottom = '10px';
+        div.tabIndex = -1;
 
         // Mark as a live region so screen readers announce status messages.
         // Use an assertive alert role for error/danger messages, and a polite
@@ -811,10 +901,14 @@
             div.setAttribute('aria-live', 'polite');
         }
         panelContainer.prepend(div);
+        div.focus();
         setTimeout(() => {
             div.style.transition = 'opacity 0.5s';
             div.style.opacity = '0';
-            setTimeout(() => div.remove(), 500);
+            setTimeout(() => {
+                div.remove();
+                if (returnFocusEl && document.contains(returnFocusEl)) returnFocusEl.focus();
+            }, 500);
         }, 3000);
     }
 
@@ -825,6 +919,80 @@
             btn.style.opacity = disabled ? '0.6' : '1';
             btn.style.cursor = disabled ? 'not-allowed' : '';
         });
+    }
+
+    function setPanelIssue(key, hasIssue) {
+        panelIssues[key] = hasIssue;
+        updateTitleBadge();
+    }
+
+    function updateTitleBadge() {
+        if (!titleBadgeEl || !panelBodyEl) return;
+        const isCollapsed = panelBodyEl.style.display === 'none';
+        const anyIssue = Object.values(panelIssues).some(Boolean);
+        titleBadgeEl.style.display = (isCollapsed && anyIssue) ? 'inline' : 'none';
+    }
+
+    // ─── Canvas Status indicator ──────────────────────────────────────────────
+
+    function fetchCanvasStatus(el) {
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: CANVAS_STATUS_URL,
+            timeout: REQUEST_TIMEOUT_MS,
+            headers: { Accept: 'application/json' },
+            onload(response) {
+                if (response.status >= 200 && response.status < 300) {
+                    try {
+                        const data = JSON.parse(response.responseText);
+                        updateStatusIndicator(el, data);
+                    } catch (e) {
+                        el.textContent = '⚪';
+                        el.title = 'Could not parse Canvas status';
+                        el.setAttribute('aria-label', 'Canvas status: unavailable');
+                    }
+                } else {
+                    el.textContent = '⚪';
+                    el.title = 'Could not fetch Canvas status';
+                    el.setAttribute('aria-label', 'Canvas status: unavailable');
+                }
+            },
+            onerror() {
+                el.textContent = '⚪';
+                el.title = 'Could not reach status.instructure.com';
+                el.setAttribute('aria-label', 'Canvas status: unavailable');
+            },
+            ontimeout() {
+                el.textContent = '⚪';
+                el.title = 'Canvas status request timed out';
+                el.setAttribute('aria-label', 'Canvas status: unavailable');
+            },
+        });
+    }
+
+    function updateStatusIndicator(el, data) {
+        const indicator = data?.status?.indicator ?? 'none';
+        const description = data?.status?.description ?? 'Unknown';
+        const incidents = data?.incidents ?? [];
+
+        if (indicator === 'none') {
+            el.textContent = '🟢';
+        } else if (indicator === 'minor') {
+            el.textContent = '🟡';
+        } else {
+            el.textContent = '🔴';
+        }
+
+        let tooltip = `Canvas Status: ${description}`;
+        if (incidents.length > 0) {
+            tooltip += '\n\nActive Incidents:';
+            incidents.slice(0, 5).forEach(inc => {
+                tooltip += `\n• ${inc.name} [${inc.status}]`;
+            });
+        }
+        el.title = tooltip;
+        el.setAttribute('aria-label', `Canvas status: ${description}`);
+        setPanelIssue('canvasStatus', indicator !== 'none');
     }
 
     // Escapes HTML special characters to prevent XSS when inserting API-sourced
@@ -934,11 +1102,13 @@
     function updateVersionTooltip(el, latestVersion) {
         if (compareVersions(latestVersion, SCRIPT_VERSION) <= 0) {
             el.title = `${VERSION_TOOLTIP_BASE}\n\n✅ You are on the latest version.`;
+            el.setAttribute('aria-label', `Canvas Module Diagnostics v${SCRIPT_VERSION} — up to date`);
         } else {
             el.textContent = '🔔';
             el.title =
                 `${VERSION_TOOLTIP_BASE}\n\n⚠️ Update available: v${latestVersion}\n` +
                 `Open the Tampermonkey dashboard to update.`;
+            el.setAttribute('aria-label', `Canvas Module Diagnostics — update available: v${latestVersion}`);
         }
     }
 })();
