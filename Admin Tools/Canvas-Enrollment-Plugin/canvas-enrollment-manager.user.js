@@ -360,7 +360,10 @@
             panelBodyEl.appendChild(sep);
 
             // Health section header with its own per-section collapse toggle
-            const healthIsCollapsed = localStorage.getItem(HEALTH_COLLAPSED_STORAGE_KEY) === 'true';
+            let healthIsCollapsed = false;
+            try {
+                healthIsCollapsed = localStorage.getItem(HEALTH_COLLAPSED_STORAGE_KEY) === 'true';
+            } catch (_) {}
             const healthToggleBtn = document.createElement('button');
             healthToggleBtn.textContent = healthIsCollapsed ? '▶' : '▼';
             healthToggleBtn.setAttribute('aria-expanded', String(!healthIsCollapsed));
