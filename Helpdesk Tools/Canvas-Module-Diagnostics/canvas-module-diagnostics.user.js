@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas Module Diagnostics
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  Adds a Helpdesk Tools panel to Canvas course pages for diagnosing module completion requirement issues
 // @author       NKU CETI
 // @match        https://*.instructure.com/courses/*
@@ -16,7 +16,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.3';
+    const SCRIPT_VERSION = '1.4';
     const DEBUG = false;
     const REQUEST_TIMEOUT_MS = 15000;
     // NKU's internal Canvas role ID for the Helpdesk course enrollment role.
@@ -34,6 +34,17 @@
     const VERSION_CHECK_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
     const CANVAS_STATUS_URL = 'https://status.instructure.com/api/v2/summary.json';
     const COLLAPSED_STORAGE_KEY = 'module_diagnostics_collapsed';
+    // Canvas status page components to monitor; others are excluded to avoid
+    // showing alerts for services NKU does not use.
+    const RELEVANT_COMPONENTS = new Set([
+        'Canvas LMS',
+        'Canvas Commons',
+        'Canvas Data 2',
+        'Canvas Mobile',
+        'Canvas Portfolio',
+        'AWS Region us-east-1',
+        'Support Tools',
+    ]);
 
     // Human-readable labels for each Canvas completion requirement type
     const COMPLETION_TYPE_LABELS = {
@@ -229,7 +240,7 @@
         toggleBtn.setAttribute('aria-expanded', String(!isCollapsed));
         toggleBtn.setAttribute('aria-controls', 'module-diagnostics-body');
         toggleBtn.setAttribute('aria-label',
-            isCollapsed ? 'Expand Helpdesk Tools panel' : 'Collapse Helpdesk Tools panel');
+            isCollapsed ? 'Expand Helpdesk Toolkit panel' : 'Collapse Helpdesk Toolkit panel');
         Object.assign(toggleBtn.style, {
             background: 'none',
             border: 'none',
@@ -243,7 +254,7 @@
         });
 
         const title = document.createElement('h3');
-        title.textContent = 'Helpdesk Tools';
+        title.textContent = 'Helpdesk Toolkit';
         title.style.margin = '0';
 
         const titleLeft = document.createElement('div');
@@ -300,8 +311,8 @@
             toggleBtn.textContent = nowCollapsed ? '▶' : '▼';
             toggleBtn.setAttribute('aria-expanded', String(!nowCollapsed));
             toggleBtn.setAttribute('aria-label', nowCollapsed
-                ? 'Expand Helpdesk Tools panel'
-                : 'Collapse Helpdesk Tools panel');
+                ? 'Expand Helpdesk Toolkit panel'
+                : 'Collapse Helpdesk Toolkit panel');
             try { localStorage.setItem(COLLAPSED_STORAGE_KEY, String(nowCollapsed)); } catch (_) {}
             updateTitleBadge();
         });
@@ -971,9 +982,29 @@
     }
 
     function updateStatusIndicator(el, data) {
-        const indicator = data?.status?.indicator ?? 'none';
-        const description = data?.status?.description ?? 'Unknown';
+        const allComponents = data?.components ?? [];
         const incidents = data?.incidents ?? [];
+
+        // Filter to only the components NKU uses
+        const relevant = allComponents.filter(c => RELEVANT_COMPONENTS.has(c.name));
+
+        // Determine worst status among relevant components.
+        // Statuspage component statuses: operational, degraded_performance,
+        // partial_outage, major_outage, under_maintenance.
+        const STATUS_RANK = {
+            operational: 0,
+            under_maintenance: 1,
+            degraded_performance: 2,
+            partial_outage: 2,
+            major_outage: 3,
+        };
+        let worstRank = 0;
+        relevant.forEach(c => {
+            const rank = STATUS_RANK[c.status] ?? 0;
+            if (rank > worstRank) worstRank = rank;
+        });
+
+        const indicator = worstRank === 0 ? 'none' : worstRank <= 2 ? 'minor' : 'major';
 
         if (indicator === 'none') {
             el.textContent = '🟢';
@@ -983,10 +1014,20 @@
             el.textContent = '🔴';
         }
 
+        // Filter incidents to those affecting at least one relevant component
+        const relevantIds = new Set(relevant.map(c => c.id));
+        const relevantIncidents = incidents.filter(inc =>
+            (inc.components ?? []).some(c => relevantIds.has(c.id))
+        );
+
+        const description = indicator === 'none' ? 'All Systems Operational'
+            : indicator === 'minor' ? 'Partial Disruption'
+            : 'Major Disruption';
+
         let tooltip = `Canvas Status: ${description}`;
-        if (incidents.length > 0) {
+        if (relevantIncidents.length > 0) {
             tooltip += '\n\nActive Incidents:';
-            incidents.slice(0, 5).forEach(inc => {
+            relevantIncidents.slice(0, 5).forEach(inc => {
                 tooltip += `\n• ${inc.name} [${inc.status}]`;
             });
         }
