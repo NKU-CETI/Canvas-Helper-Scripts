@@ -291,6 +291,7 @@
         panelBody.style.display = isCollapsed ? 'none' : '';
         collapseBtn.textContent = isCollapsed ? '▶' : '▼';
         collapseBtn.title = isCollapsed ? 'Expand panel' : 'Collapse panel';
+        collapseBtn.setAttribute('aria-controls', 'instructor-helper-body');
         collapseBtn.setAttribute('aria-expanded', String(!isCollapsed));
         collapseBtn.setAttribute('aria-label',
             isCollapsed ? 'Expand Instructor Toolkit panel' : 'Collapse Instructor Toolkit panel');
