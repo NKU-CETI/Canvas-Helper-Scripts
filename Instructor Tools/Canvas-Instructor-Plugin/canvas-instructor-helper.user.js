@@ -262,6 +262,7 @@
         statusLink.href = 'https://status.instructure.com';
         statusLink.target = '_blank';
         statusLink.title = 'Checking Canvas status…';
+        statusLink.setAttribute('aria-label', 'Canvas status: checking…');
         Object.assign(statusLink.style, {
             fontSize: '1.1em',
             textDecoration: 'none',
@@ -498,14 +499,16 @@
                     } catch (e) {
                         el.textContent = '⚪';
                         el.title = 'Could not parse Canvas status';
+                        el.setAttribute('aria-label', 'Canvas status: unavailable');
                     }
                 } else {
                     el.textContent = '⚪';
                     el.title = 'Could not fetch Canvas status';
+                    el.setAttribute('aria-label', 'Canvas status: unavailable');
                 }
             },
-            onerror() { el.textContent = '⚪'; el.title = 'Could not reach status.instructure.com'; },
-            ontimeout() { el.textContent = '⚪'; el.title = 'Canvas status request timed out'; },
+            onerror() { el.textContent = '⚪'; el.title = 'Could not reach status.instructure.com'; el.setAttribute('aria-label', 'Canvas status: unavailable'); },
+            ontimeout() { el.textContent = '⚪'; el.title = 'Canvas status request timed out'; el.setAttribute('aria-label', 'Canvas status: unavailable'); },
         });
     }
 
@@ -524,6 +527,7 @@
             const aggDescription = data?.status?.description ?? 'Unknown';
             el.textContent = aggIndicator === 'none' ? '🟢' : aggIndicator === 'minor' ? '🟡' : '🔴';
             el.title = `Canvas Status: ${aggDescription}`;
+            el.setAttribute('aria-label', `Canvas status: ${aggDescription}`);
             return;
         }
 
@@ -577,6 +581,7 @@
             });
         }
         el.title = tooltip;
+        el.setAttribute('aria-label', `Canvas status: ${description}`);
     }
 
     // ─── GitHub version check ─────────────────────────────────────────────────
