@@ -216,7 +216,12 @@
         });
 
         // Left group: chevron toggle + title
-        const isCollapsed = localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true';
+        let isCollapsed = false;
+        try {
+            isCollapsed = localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true';
+        } catch (error) {
+            isCollapsed = false;
+        }
         toggleBtn = document.createElement('button');
         toggleBtn.textContent = isCollapsed ? '▶' : '▼';
         toggleBtn.setAttribute('aria-expanded', String(!isCollapsed));
