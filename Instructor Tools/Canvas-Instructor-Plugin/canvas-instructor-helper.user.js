@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas Instructor Helper
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  Adds a Course Health panel to Canvas course pages for instructors
 // @author       NKU CETI
 // @match        https://*.instructure.com/courses/*
@@ -16,7 +16,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.3';
+    const SCRIPT_VERSION = '1.4';
     const DEBUG = false;
     const REQUEST_TIMEOUT_MS = 15000;
     const LINK_VALIDATOR_POLL_INTERVAL_MS = 4000;
@@ -291,12 +291,19 @@
         panelBody.style.display = isCollapsed ? 'none' : '';
         collapseBtn.textContent = isCollapsed ? '▶' : '▼';
         collapseBtn.title = isCollapsed ? 'Expand panel' : 'Collapse panel';
+        collapseBtn.setAttribute('aria-expanded', String(!isCollapsed));
+        collapseBtn.setAttribute('aria-label',
+            isCollapsed ? 'Expand Instructor Toolkit panel' : 'Collapse Instructor Toolkit panel');
 
         collapseBtn.addEventListener('click', () => {
             const nowCollapsed = panelBody.style.display !== 'none';
             panelBody.style.display = nowCollapsed ? 'none' : '';
             collapseBtn.textContent = nowCollapsed ? '▶' : '▼';
             collapseBtn.title = nowCollapsed ? 'Expand panel' : 'Collapse panel';
+            collapseBtn.setAttribute('aria-expanded', String(!nowCollapsed));
+            collapseBtn.setAttribute('aria-label', nowCollapsed
+                ? 'Expand Instructor Toolkit panel'
+                : 'Collapse Instructor Toolkit panel');
             setPanelCollapsed(nowCollapsed);
         });
 
@@ -508,6 +515,17 @@
         // Filter to only the components NKU uses
         const relevant = allComponents.filter(c => RELEVANT_COMPONENTS.has(c.name));
 
+        // If no known component names matched (e.g. Statuspage renamed components or
+        // the API omitted the components array), fall back to the aggregate indicator
+        // so we never falsely show 🟢 when status is actually unknown.
+        if (relevant.length === 0) {
+            const aggIndicator = data?.status?.indicator ?? 'none';
+            const aggDescription = data?.status?.description ?? 'Unknown';
+            el.textContent = aggIndicator === 'none' ? '🟢' : aggIndicator === 'minor' ? '🟡' : '🔴';
+            el.title = `Canvas Status: ${aggDescription}`;
+            return;
+        }
+
         // Determine worst status among relevant components.
         // Statuspage component statuses: operational, degraded_performance,
         // partial_outage, major_outage, under_maintenance.
@@ -518,13 +536,21 @@
             partial_outage: 2,
             major_outage: 3,
         };
+        const STATUS_DESCRIPTIONS = {
+            operational: 'All Systems Operational',
+            under_maintenance: 'Under Maintenance',
+            degraded_performance: 'Partial Disruption',
+            partial_outage: 'Partial Disruption',
+            major_outage: 'Major Disruption',
+        };
         let worstRank = 0;
+        let worstStatus = 'operational';
         relevant.forEach(c => {
             const rank = STATUS_RANK[c.status] ?? 0;
-            if (rank > worstRank) worstRank = rank;
+            if (rank > worstRank) { worstRank = rank; worstStatus = c.status; }
         });
 
-        const indicator = worstRank === 0 ? 'none' : worstRank <= 2 ? 'minor' : 'major';
+        const indicator = worstRank === 0 ? 'none' : worstRank >= 3 ? 'major' : 'minor';
 
         if (indicator === 'none') {
             el.textContent = '🟢';
@@ -540,9 +566,7 @@
             (inc.components ?? []).some(c => relevantIds.has(c.id))
         );
 
-        const description = indicator === 'none' ? 'All Systems Operational'
-            : indicator === 'minor' ? 'Partial Disruption'
-            : 'Major Disruption';
+        const description = STATUS_DESCRIPTIONS[worstStatus] ?? 'Degraded';
 
         let tooltip = `Canvas Status: ${description}`;
         if (relevantIncidents.length > 0) {
