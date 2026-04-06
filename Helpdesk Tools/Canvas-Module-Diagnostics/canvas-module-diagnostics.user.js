@@ -56,7 +56,9 @@
     let toggleBtn = null;
     let panelBodyEl = null;
     let titleBadgeEl = null;
-    let panelIssueCount = 0;
+    // Per-check issue flags; recomputed on every result so the badge clears
+    // automatically when a re-run reports no issues.
+    const panelIssues = { canvasStatus: false };
 
     // Only run on course pages
     const courseIdMatch = window.location.pathname.match(/\/courses\/(\d+)/);
@@ -195,7 +197,7 @@
     function initializePanel(isEnrolled) {
         if (document.getElementById('module-diagnostics-container')) return;
 
-        panelIssueCount = 0;
+        panelIssues.canvasStatus = false;
         panelContainer = document.createElement('div');
         panelContainer.id = 'module-diagnostics-container';
         Object.assign(panelContainer.style, {
@@ -919,15 +921,16 @@
         });
     }
 
-    function markPanelHasIssue() {
-        panelIssueCount++;
+    function setPanelIssue(key, hasIssue) {
+        panelIssues[key] = hasIssue;
         updateTitleBadge();
     }
 
     function updateTitleBadge() {
         if (!titleBadgeEl || !panelBodyEl) return;
         const isCollapsed = panelBodyEl.style.display === 'none';
-        titleBadgeEl.style.display = (isCollapsed && panelIssueCount > 0) ? 'inline' : 'none';
+        const anyIssue = Object.values(panelIssues).some(Boolean);
+        titleBadgeEl.style.display = (isCollapsed && anyIssue) ? 'inline' : 'none';
     }
 
     // ─── Canvas Status indicator ──────────────────────────────────────────────
@@ -989,7 +992,7 @@
         }
         el.title = tooltip;
         el.setAttribute('aria-label', `Canvas status: ${description}`);
-        if (indicator !== 'none') markPanelHasIssue();
+        setPanelIssue('canvasStatus', indicator !== 'none');
     }
 
     // Escapes HTML special characters to prevent XSS when inserting API-sourced

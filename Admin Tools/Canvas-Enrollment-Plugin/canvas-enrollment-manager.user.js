@@ -46,7 +46,9 @@
     let toggleBtn = null;
     let panelBodyEl = null;
     let titleBadgeEl = null;
-    let panelIssueCount = 0;
+    // Per-check issue flags; recomputed on every result so the badge clears
+    // automatically when a re-run reports no issues.
+    const panelIssues = { canvasStatus: false, linkValidator: false, dueDates: false };
     let lastRunTimerInterval = null;
     let lastRunLineEl = null;
 
@@ -225,7 +227,9 @@
     function initializeButtons(isEnrolled) {
         if (document.getElementById('enrollment-manager-container')) return;
 
-        panelIssueCount = 0;
+        panelIssues.canvasStatus = false;
+        panelIssues.linkValidator = false;
+        panelIssues.dueDates = false;
         buttonContainer = document.createElement('div');
         buttonContainer.id = 'enrollment-manager-container';
         Object.assign(buttonContainer.style, {
@@ -246,7 +250,8 @@
         });
 
         // Left group: chevron toggle + title
-        const isCollapsed = localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true';
+        let isCollapsed = false;
+        try { isCollapsed = localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true'; } catch (_) {}
         toggleBtn = document.createElement('button');
         toggleBtn.textContent = isCollapsed ? '▶' : '▼';
         toggleBtn.setAttribute('aria-expanded', String(!isCollapsed));
@@ -360,7 +365,8 @@
             panelBodyEl.appendChild(sep);
 
             // Health section header with its own per-section collapse toggle
-            const healthIsCollapsed = localStorage.getItem(HEALTH_COLLAPSED_STORAGE_KEY) === 'true';
+            let healthIsCollapsed = false;
+            try { healthIsCollapsed = localStorage.getItem(HEALTH_COLLAPSED_STORAGE_KEY) === 'true'; } catch (_) {}
             const healthToggleBtn = document.createElement('button');
             healthToggleBtn.textContent = healthIsCollapsed ? '▶' : '▼';
             healthToggleBtn.setAttribute('aria-expanded', String(!healthIsCollapsed));
@@ -448,15 +454,16 @@
         });
     }
 
-    function markPanelHasIssue() {
-        panelIssueCount++;
+    function setPanelIssue(key, hasIssue) {
+        panelIssues[key] = hasIssue;
         updateTitleBadge();
     }
 
     function updateTitleBadge() {
         if (!titleBadgeEl || !panelBodyEl) return;
         const isCollapsed = panelBodyEl.style.display === 'none';
-        titleBadgeEl.style.display = (isCollapsed && panelIssueCount > 0) ? 'inline' : 'none';
+        const anyIssue = Object.values(panelIssues).some(Boolean);
+        titleBadgeEl.style.display = (isCollapsed && anyIssue) ? 'inline' : 'none';
     }
 
     function insertButtonContainer() {
@@ -793,7 +800,7 @@
         }
         el.title = tooltip;
         el.setAttribute('aria-label', `Canvas status: ${description}`);
-        if (indicator !== 'none') markPanelHasIssue();
+        setPanelIssue('canvasStatus', indicator !== 'none');
     }
 
     // ─── GitHub version check ─────────────────────────────────────────────────
@@ -982,7 +989,7 @@
         if (!text) return;
         if (lastRunTimerInterval) { clearInterval(lastRunTimerInterval); lastRunTimerInterval = null; }
         const line = document.createElement('div');
-        Object.assign(line.style, { fontSize: '0.85em', color: '#777', marginTop: '3px' });
+        Object.assign(line.style, { fontSize: '0.85em', color: '#595959', marginTop: '3px' });
         line.textContent = text;
         statusDiv.appendChild(line);
         lastRunLineEl = line;
@@ -1008,10 +1015,10 @@
 
         statusDiv.innerHTML = '';
         const resultLine = document.createElement('div');
+        setPanelIssue('linkValidator', issues.length > 0);
         if (issues.length === 0) {
             resultLine.innerHTML = `✅ No broken links found. <a href="${reportUrl}" target="_blank">View report</a>`;
         } else {
-            markPanelHasIssue();
             // Count total broken link occurrences across all content items
             const brokenLinkCount = issues.reduce((sum, item) => sum + (item.invalid_links?.length ?? 0), 0);
             resultLine.innerHTML =
@@ -1098,10 +1105,11 @@
                     const dateStr = earliestEntry.start.toLocaleDateString();
                     const note = hasMultiple ? ` (earliest section: "${earliestEntry.name}")` : '';
                     container.textContent = `✅ All due dates are on or after section start${note} (${dateStr}).`;
+                    setPanelIssue('dueDates', false);
                     return;
                 }
 
-                markPanelHasIssue();
+                setPanelIssue('dueDates', true);
                 const dateStr = earliestEntry.start.toLocaleDateString();
                 const note = hasMultiple
                     ? ` (using earliest section start: "${earliestEntry.name}", ${dateStr})`
