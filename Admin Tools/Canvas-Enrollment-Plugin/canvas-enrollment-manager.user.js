@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas Enrollment Manager
 // @namespace    http://tampermonkey.net/
-// @version      1.8
+// @version      1.9
 // @description  Adds buttons to Canvas course pages to modify your enrollment
 // @author       NKU CETI
 // @match        https://*.instructure.com/courses/*
@@ -16,7 +16,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.8';
+    const SCRIPT_VERSION = '1.9';
     const DEBUG = false;
     const REQUEST_TIMEOUT_MS = 15000;
     const LINK_VALIDATOR_POLL_INTERVAL_MS = 4000;
@@ -30,6 +30,8 @@
     const VERSION_TOOLTIP_BASE = `Canvas Enrollment Manager v${SCRIPT_VERSION}\nManages course enrollment and runs health checks.\nMade for Northern Kentucky University.`;
     const VERSION_CHECK_CACHE_KEY = 'cem_version_check';
     const VERSION_CHECK_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+    const COLLAPSED_STORAGE_KEY = 'enrollment_manager_collapsed';
+    const HEALTH_COLLAPSED_STORAGE_KEY = 'enrollment_manager_health_collapsed';
 
     const log = (...args) => DEBUG && console.log('Canvas Enrollment Manager:', ...args);
     const warn = (...args) => console.warn('Canvas Enrollment Manager:', ...args);
@@ -41,6 +43,12 @@
     let userId;
     let buttonContainer;
     let linkValidatorPollInterval = null;
+    let toggleBtn = null;
+    let panelBodyEl = null;
+    let titleBadgeEl = null;
+    let panelIssueCount = 0;
+    let lastRunTimerInterval = null;
+    let lastRunLineEl = null;
 
     // Only run on course pages
     const courseIdMatch = window.location.pathname.match(/\/courses\/(\d+)/);
@@ -217,6 +225,7 @@
     function initializeButtons(isEnrolled) {
         if (document.getElementById('enrollment-manager-container')) return;
 
+        panelIssueCount = 0;
         buttonContainer = document.createElement('div');
         buttonContainer.id = 'enrollment-manager-container';
         Object.assign(buttonContainer.style, {
@@ -227,7 +236,7 @@
             border: '1px solid #ddd',
         });
 
-        // Title row with Canvas status indicator on the right
+        // ── Title row (always visible, never collapses) ────────────────────────
         const titleRow = document.createElement('div');
         Object.assign(titleRow.style, {
             display: 'flex',
@@ -236,16 +245,50 @@
             marginBottom: '8px',
         });
 
+        // Left group: chevron toggle + title
+        const isCollapsed = localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true';
+        toggleBtn = document.createElement('button');
+        toggleBtn.textContent = isCollapsed ? '▶' : '▼';
+        toggleBtn.setAttribute('aria-expanded', String(!isCollapsed));
+        toggleBtn.setAttribute('aria-controls', 'enrollment-manager-body');
+        toggleBtn.setAttribute('aria-label',
+            isCollapsed ? 'Expand Enrollment Management panel' : 'Collapse Enrollment Management panel');
+        Object.assign(toggleBtn.style, {
+            background: 'none',
+            border: 'none',
+            padding: '0',
+            marginRight: '4px',
+            cursor: 'pointer',
+            fontSize: '0.85em',
+            color: '#555',
+            lineHeight: '1',
+            flexShrink: '0',
+        });
+
         const title = document.createElement('h3');
         title.textContent = 'Enrollment Management';
         title.style.margin = '0';
-        titleRow.appendChild(title);
+
+        const titleLeft = document.createElement('div');
+        Object.assign(titleLeft.style, { display: 'flex', alignItems: 'center' });
+        titleLeft.appendChild(toggleBtn);
+        titleLeft.appendChild(title);
+        titleRow.appendChild(titleLeft);
+
+        // Right group: issue badge + version icon + Canvas status link
+        titleBadgeEl = document.createElement('span');
+        titleBadgeEl.textContent = '⚠️';
+        titleBadgeEl.title = 'Issues detected — expand panel for details';
+        titleBadgeEl.setAttribute('aria-label', 'Issues detected — expand panel for details');
+        Object.assign(titleBadgeEl.style, { display: 'none', fontSize: '0.85em', cursor: 'default' });
 
         const statusLink = document.createElement('a');
         statusLink.textContent = '⚪';
         statusLink.href = 'https://status.instructure.com';
         statusLink.target = '_blank';
+        statusLink.rel = 'noopener noreferrer';
         statusLink.title = 'Checking Canvas status…';
+        statusLink.setAttribute('aria-label', 'Canvas status: checking…');
         Object.assign(statusLink.style, {
             fontSize: '1.1em',
             textDecoration: 'none',
@@ -255,10 +298,12 @@
         const versionIcon = document.createElement('span');
         versionIcon.textContent = 'ℹ️';
         versionIcon.title = `${VERSION_TOOLTIP_BASE}\nChecking for updates…`;
+        versionIcon.setAttribute('aria-label', `Canvas Enrollment Manager v${SCRIPT_VERSION} — checking for updates`);
         Object.assign(versionIcon.style, { fontSize: '1em', cursor: 'default' });
 
         const rightIcons = document.createElement('div');
         Object.assign(rightIcons.style, { display: 'flex', alignItems: 'center', gap: '6px' });
+        rightIcons.appendChild(titleBadgeEl);
         rightIcons.appendChild(versionIcon);
         rightIcons.appendChild(statusLink);
         titleRow.appendChild(rightIcons);
@@ -267,16 +312,33 @@
         fetchCanvasStatus(statusLink);
         fetchLatestVersion(versionIcon);
 
+        // ── Panel body (collapses when toggle is clicked) ──────────────────────
+        panelBodyEl = document.createElement('div');
+        panelBodyEl.id = 'enrollment-manager-body';
+        if (isCollapsed) panelBodyEl.style.display = 'none';
+
+        toggleBtn.addEventListener('click', () => {
+            const nowCollapsed = panelBodyEl.style.display !== 'none';
+            panelBodyEl.style.display = nowCollapsed ? 'none' : '';
+            toggleBtn.textContent = nowCollapsed ? '▶' : '▼';
+            toggleBtn.setAttribute('aria-expanded', String(!nowCollapsed));
+            toggleBtn.setAttribute('aria-label', nowCollapsed
+                ? 'Expand Enrollment Management panel'
+                : 'Collapse Enrollment Management panel');
+            try { localStorage.setItem(COLLAPSED_STORAGE_KEY, String(nowCollapsed)); } catch (_) {}
+            updateTitleBadge();
+        });
+
         // Show enroll button when not enrolled (or status unknown)
         if (isEnrolled === null || !isEnrolled) {
             const enrollButton = createButton('Enroll as Designer', 'primary');
             enrollButton.addEventListener('click', () => {
                 const uid = getUserId() || userId;
-                if (!uid) { showMessage('Unable to determine user ID', 'error'); return; }
+                if (!uid) { showMessage('Unable to determine user ID', 'error', enrollButton); return; }
                 setButtonsDisabled(true);
                 enrollAsDesigner(courseId, uid, domain, getCsrfToken(), enrollButton);
             });
-            buttonContainer.appendChild(enrollButton);
+            panelBodyEl.appendChild(enrollButton);
         }
 
         // Show unenroll button when enrolled (or status unknown)
@@ -284,23 +346,67 @@
             const unenrollButton = createButton('Unenroll Completely', 'danger');
             unenrollButton.addEventListener('click', () => {
                 const uid = getUserId() || userId;
-                if (!uid) { showMessage('Unable to determine user ID', 'error'); return; }
+                if (!uid) { showMessage('Unable to determine user ID', 'error', unenrollButton); return; }
                 setButtonsDisabled(true);
                 unenrollCompletely(courseId, uid, domain, getCsrfToken(), unenrollButton);
             });
-            buttonContainer.appendChild(unenrollButton);
+            panelBodyEl.appendChild(unenrollButton);
         }
 
-        // ── Course Health section (only available when confirmed enrolled as Designer/Teacher) ──
+        // ── Course Health section (only when confirmed enrolled as Designer/Teacher) ──
         if (isEnrolled === true) {
             const sep = document.createElement('hr');
             Object.assign(sep.style, { margin: '10px 0', border: 'none', borderTop: '1px solid #ddd' });
-            buttonContainer.appendChild(sep);
+            panelBodyEl.appendChild(sep);
+
+            // Health section header with its own per-section collapse toggle
+            const healthIsCollapsed = localStorage.getItem(HEALTH_COLLAPSED_STORAGE_KEY) === 'true';
+            const healthToggleBtn = document.createElement('button');
+            healthToggleBtn.textContent = healthIsCollapsed ? '▶' : '▼';
+            healthToggleBtn.setAttribute('aria-expanded', String(!healthIsCollapsed));
+            healthToggleBtn.setAttribute('aria-controls', 'enrollment-manager-health-body');
+            healthToggleBtn.setAttribute('aria-label',
+                healthIsCollapsed ? 'Expand Course Health section' : 'Collapse Course Health section');
+            Object.assign(healthToggleBtn.style, {
+                background: 'none',
+                border: 'none',
+                padding: '0',
+                marginRight: '4px',
+                cursor: 'pointer',
+                fontSize: '0.75em',
+                color: '#555',
+                lineHeight: '1',
+                flexShrink: '0',
+            });
 
             const healthTitle = document.createElement('h4');
             healthTitle.textContent = 'Course Health';
-            Object.assign(healthTitle.style, { margin: '0 0 8px 0', fontSize: '1em' });
-            buttonContainer.appendChild(healthTitle);
+            Object.assign(healthTitle.style, { margin: '0', fontSize: '1em' });
+
+            const healthHeaderRow = document.createElement('div');
+            Object.assign(healthHeaderRow.style, {
+                display: 'flex',
+                alignItems: 'center',
+                marginBottom: '8px',
+            });
+            healthHeaderRow.appendChild(healthToggleBtn);
+            healthHeaderRow.appendChild(healthTitle);
+            panelBodyEl.appendChild(healthHeaderRow);
+
+            const healthBodyEl = document.createElement('div');
+            healthBodyEl.id = 'enrollment-manager-health-body';
+            if (healthIsCollapsed) healthBodyEl.style.display = 'none';
+
+            healthToggleBtn.addEventListener('click', () => {
+                const nowCollapsed = healthBodyEl.style.display !== 'none';
+                healthBodyEl.style.display = nowCollapsed ? 'none' : '';
+                healthToggleBtn.textContent = nowCollapsed ? '▶' : '▼';
+                healthToggleBtn.setAttribute('aria-expanded', String(!nowCollapsed));
+                healthToggleBtn.setAttribute('aria-label', nowCollapsed
+                    ? 'Expand Course Health section'
+                    : 'Collapse Course Health section');
+                try { localStorage.setItem(HEALTH_COLLAPSED_STORAGE_KEY, String(nowCollapsed)); } catch (_) {}
+            });
 
             // Link validator row
             const linkValRow = document.createElement('div');
@@ -313,7 +419,7 @@
 
             linkValRow.appendChild(linkValBtn);
             linkValRow.appendChild(linkValStatus);
-            buttonContainer.appendChild(linkValRow);
+            healthBodyEl.appendChild(linkValRow);
 
             linkValBtn.addEventListener('click', () => startLinkValidator(linkValBtn, linkValStatus));
             checkLinkValidatorStatus(linkValBtn, linkValStatus);
@@ -322,11 +428,14 @@
             const dueDateDiv = document.createElement('div');
             Object.assign(dueDateDiv.style, { fontSize: '0.9em', color: '#555' });
             dueDateDiv.textContent = 'Checking due dates…';
-            buttonContainer.appendChild(dueDateDiv);
+            healthBodyEl.appendChild(dueDateDiv);
 
             checkDueDates(dueDateDiv);
+
+            panelBodyEl.appendChild(healthBodyEl);
         }
 
+        buttonContainer.appendChild(panelBodyEl);
         insertButtonContainer();
     }
 
@@ -337,6 +446,17 @@
             btn.style.opacity = disabled ? '0.6' : '1';
             btn.style.cursor = disabled ? 'not-allowed' : '';
         });
+    }
+
+    function markPanelHasIssue() {
+        panelIssueCount++;
+        updateTitleBadge();
+    }
+
+    function updateTitleBadge() {
+        if (!titleBadgeEl || !panelBodyEl) return;
+        const isCollapsed = panelBodyEl.style.display === 'none';
+        titleBadgeEl.style.display = (isCollapsed && panelIssueCount > 0) ? 'inline' : 'none';
     }
 
     function insertButtonContainer() {
@@ -572,7 +692,7 @@
         return btn;
     }
 
-    function showMessage(message, type) {
+    function showMessage(message, type, returnFocusEl = null) {
         if (!buttonContainer || !document.getElementById('enrollment-manager-container')) {
             err('Cannot show message — button container not in DOM');
             return;
@@ -581,11 +701,23 @@
         div.className = `alert alert-${type}`;
         div.textContent = message;
         div.style.marginBottom = '10px';
+        div.tabIndex = -1;
+        if (type === 'danger' || type === 'error') {
+            div.setAttribute('role', 'alert');
+            div.setAttribute('aria-live', 'assertive');
+        } else {
+            div.setAttribute('role', 'status');
+            div.setAttribute('aria-live', 'polite');
+        }
         buttonContainer.prepend(div);
+        div.focus();
         setTimeout(() => {
             div.style.transition = 'opacity 0.5s';
             div.style.opacity = '0';
-            setTimeout(() => div.remove(), 500);
+            setTimeout(() => {
+                div.remove();
+                if (returnFocusEl && document.contains(returnFocusEl)) returnFocusEl.focus();
+            }, 500);
         }, 3000);
     }
 
@@ -618,14 +750,24 @@
                     } catch (e) {
                         el.textContent = '⚪';
                         el.title = 'Could not parse Canvas status';
+                        el.setAttribute('aria-label', 'Canvas status: unavailable');
                     }
                 } else {
                     el.textContent = '⚪';
                     el.title = 'Could not fetch Canvas status';
+                    el.setAttribute('aria-label', 'Canvas status: unavailable');
                 }
             },
-            onerror() { el.textContent = '⚪'; el.title = 'Could not reach status.instructure.com'; },
-            ontimeout() { el.textContent = '⚪'; el.title = 'Canvas status request timed out'; },
+            onerror() {
+                el.textContent = '⚪';
+                el.title = 'Could not reach status.instructure.com';
+                el.setAttribute('aria-label', 'Canvas status: unavailable');
+            },
+            ontimeout() {
+                el.textContent = '⚪';
+                el.title = 'Canvas status request timed out';
+                el.setAttribute('aria-label', 'Canvas status: unavailable');
+            },
         });
     }
 
@@ -650,6 +792,8 @@
             });
         }
         el.title = tooltip;
+        el.setAttribute('aria-label', `Canvas status: ${description}`);
+        if (indicator !== 'none') markPanelHasIssue();
     }
 
     // ─── GitHub version check ─────────────────────────────────────────────────
@@ -711,9 +855,11 @@
     function updateVersionTooltip(el, latestVersion) {
         if (compareVersions(latestVersion, SCRIPT_VERSION) <= 0) {
             el.title = `${VERSION_TOOLTIP_BASE}\n\n✅ You are on the latest version.`;
+            el.setAttribute('aria-label', `Canvas Enrollment Manager v${SCRIPT_VERSION} — up to date`);
         } else {
             el.textContent = '🔔';
             el.title = `${VERSION_TOOLTIP_BASE}\n\n⚠️ Update available: v${latestVersion}\nOpen the Tampermonkey dashboard to update.`;
+            el.setAttribute('aria-label', `Canvas Enrollment Manager — update available: v${latestVersion}`);
         }
     }
 
@@ -739,6 +885,7 @@
 
     function startLinkValidator(btn, statusDiv) {
         if (linkValidatorPollInterval) clearInterval(linkValidatorPollInterval);
+        if (lastRunTimerInterval) { clearInterval(lastRunTimerInterval); lastRunTimerInterval = null; }
         btn.disabled = true;
         statusDiv.textContent = 'Starting link validation…';
 
@@ -818,19 +965,37 @@
         } catch (_) { return null; }
     }
 
-    function formatLastRun(date) {
+    function formatRelativeTime(date) {
         if (!date) return null;
-        return `Last run: ${date.toLocaleString()}`;
+        const diffMs = date.getTime() - Date.now();
+        const absMs = Math.abs(diffMs);
+        const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+        if (absMs < 60000) return 'Last run: just now';
+        if (absMs < 3600000) return `Last run: ${rtf.format(Math.round(diffMs / 60000), 'minute')}`;
+        if (absMs < 86400000) return `Last run: ${rtf.format(Math.round(diffMs / 3600000), 'hour')}`;
+        return `Last run: ${rtf.format(Math.round(diffMs / 86400000), 'day')}`;
     }
 
     function appendLastRunLine(statusDiv) {
         const ts = getLinkValidatorLastRun();
-        const text = formatLastRun(ts);
+        const text = formatRelativeTime(ts);
         if (!text) return;
+        if (lastRunTimerInterval) { clearInterval(lastRunTimerInterval); lastRunTimerInterval = null; }
         const line = document.createElement('div');
         Object.assign(line.style, { fontSize: '0.85em', color: '#777', marginTop: '3px' });
         line.textContent = text;
         statusDiv.appendChild(line);
+        lastRunLineEl = line;
+        lastRunTimerInterval = setInterval(() => {
+            if (!document.contains(lastRunLineEl)) {
+                clearInterval(lastRunTimerInterval);
+                lastRunTimerInterval = null;
+                return;
+            }
+            const updatedTs = getLinkValidatorLastRun();
+            const updatedText = formatRelativeTime(updatedTs);
+            if (updatedText) lastRunLineEl.textContent = updatedText;
+        }, 60000);
     }
 
     function displayLinkValidatorResults(btn, statusDiv, data, saveTimestamp = false) {
@@ -846,6 +1011,7 @@
         if (issues.length === 0) {
             resultLine.innerHTML = `✅ No broken links found. <a href="${reportUrl}" target="_blank">View report</a>`;
         } else {
+            markPanelHasIssue();
             // Count total broken link occurrences across all content items
             const brokenLinkCount = issues.reduce((sum, item) => sum + (item.invalid_links?.length ?? 0), 0);
             resultLine.innerHTML =
@@ -935,6 +1101,7 @@
                     return;
                 }
 
+                markPanelHasIssue();
                 const dateStr = earliestEntry.start.toLocaleDateString();
                 const note = hasMultiple
                     ? ` (using earliest section start: "${earliestEntry.name}", ${dateStr})`
