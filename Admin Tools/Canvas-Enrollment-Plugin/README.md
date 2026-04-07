@@ -15,6 +15,7 @@ A Tampermonkey userscript that adds an **Enrollment Management** panel to Canvas
 | Link Validator | Triggers Canvas's built-in link validation job and shows a summary of broken links |
 | Due-Date Checker | Checks whether any assignments have due dates falling before their section's start date |
 | Canvas Status | Live indicator (🟢/🟡/🔴) linking to status.instructure.com |
+| Course Access Request | Non-admin users visiting a concluded course on an NKU domain see a pre-filled email link to request that CETI make the course available |
 
 ---
 
@@ -73,6 +74,7 @@ Version numbering follows this convention:
 
 | Version | Notes |
 |---|---|
+| 1.12 | Non-admin users on NKU domains now see a pre-filled mailto link in the no-permission panel when the course is concluded, letting them easily email CETI@nku.edu to request access |
 | 1.8 | Panel now only appears on the course home page and settings page; no longer shows up in Speedgrader, Gradebook, or other course sub-pages |
 | 1.7 | Reverted `@match` to `*.instructure.com` wildcard; restored contextual non-NKU warning message for users on other Canvas instances |
 | 1.6 | Restricted `@match` to NKU domains only (`nku.instructure.com`, `nku.beta.instructure.com`, `nku.test.instructure.com`); fixed `DESIGNER_ROLE_ID` from 5 to 6 (id 5 is TaEnrollment; id 6 is DesignerEnrollment) |
