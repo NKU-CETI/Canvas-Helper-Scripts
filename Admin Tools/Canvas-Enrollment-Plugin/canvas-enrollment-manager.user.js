@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas Enrollment Manager
 // @namespace    http://tampermonkey.net/
-// @version      1.11
+// @version      1.12
 // @description  Adds buttons to Canvas course pages to modify your enrollment
 // @author       NKU CETI
 // @match        https://*.instructure.com/courses/*
@@ -16,7 +16,7 @@
 (function () {
     'use strict';
 
-    const SCRIPT_VERSION = '1.11';
+    const SCRIPT_VERSION = '1.12';
     const DEBUG = false;
     const REQUEST_TIMEOUT_MS = 15000;
     const LINK_VALIDATOR_POLL_INTERVAL_MS = 4000;
@@ -26,6 +26,7 @@
     // 3 polls × 4 s = 12 s maximum wait before showing results.
     const LINK_VALIDATOR_GRACE_POLLS = 3;
     const DESIGNER_ROLE_ID = 6; // NKU's Canvas role ID for the Designer enrollment role (DesignerEnrollment)
+    const CETI_EMAIL = 'CETI@nku.edu'; // Email address for NKU CETI — used in course-access request links
     const UPDATE_CHECK_URL = 'https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/Admin%20Tools/Canvas-Enrollment-Plugin/canvas-enrollment-manager.user.js';
     const VERSION_TOOLTIP_BASE = `Canvas Enrollment Manager v${SCRIPT_VERSION}\nManages course enrollment and runs health checks.\nMade for Northern Kentucky University.`;
     const VERSION_CHECK_CACHE_KEY = 'cem_version_check';
@@ -167,17 +168,45 @@
                     fetchEnrollmentAndInit();
                 } else {
                     log('User has no account admin access');
-                    showNoPermissionPanel();
+                    checkCourseStateAndShowNoPermPanel();
                 }
             },
             (error) => {
                 log('Permission check failed:', error);
-                showNoPermissionPanel();
+                showNoPermissionPanel(false, null);
             }
         );
     }
 
-    function showNoPermissionPanel() {
+    // Checks whether the current course is concluded, then shows the appropriate
+    // no-permission panel.  Only attempts an API call when the Canvas ENV object
+    // doesn't already expose the workflow state (e.g. on some sub-pages).
+    // The concluded-course email link is NKU-only and is gated inside
+    // showNoPermissionPanel, so this function is safe to call on any domain.
+    function checkCourseStateAndShowNoPermPanel() {
+        // Fast path: try to read the workflow state Canvas injects on every page.
+        if (typeof ENV !== 'undefined' && ENV.COURSE) {
+            const state = ENV.COURSE.workflow_state;
+            const name  = ENV.COURSE.name || null;
+            const concluded = state === 'completed' || ENV.COURSE.concluded === true;
+            showNoPermissionPanel(concluded, name);
+            return;
+        }
+
+        // Slow path: ask the API.  Enrolled users (even in concluded courses) can
+        // read basic course details; unenrolled users get a 401 which we treat as
+        // "not concluded" for safety.
+        const url = `https://${domain}/api/v1/courses/${courseId}`;
+        makeApiCall(url, 'GET', null, getCsrfToken(),
+            (data) => {
+                const concluded = data.workflow_state === 'completed' || data.concluded === true;
+                showNoPermissionPanel(concluded, data.name || null);
+            },
+            () => { showNoPermissionPanel(false, null); }
+        );
+    }
+
+    function showNoPermissionPanel(isConcluded = false, courseName = null) {
         if (document.getElementById('enrollment-manager-container')) return;
 
         buttonContainer = document.createElement('div');
@@ -199,19 +228,52 @@
         Object.assign(msg.style, { margin: '0', fontSize: '0.95em' });
 
         if (NKU_DOMAINS.includes(domain)) {
-            msg.innerHTML =
+            msg.appendChild(document.createTextNode(
                 'This script requires account admin permissions in Canvas and will not ' +
-                'work for your account. If you think you would have a use for it, please ' +
-                'email <a href="mailto:ceti@nku.edu">ceti@nku.edu</a> to inquire about access.';
+                'work for your account. If you think you would have a use for it, please email '
+            ));
+            const adminLink = document.createElement('a');
+            adminLink.href = `mailto:${CETI_EMAIL}`;
+            adminLink.textContent = CETI_EMAIL.toLowerCase();
+            msg.appendChild(adminLink);
+            msg.appendChild(document.createTextNode(' to inquire about access.'));
+            buttonContainer.appendChild(msg);
+
+            if (isConcluded) {
+                const concludedMsg = document.createElement('p');
+                Object.assign(concludedMsg.style, { margin: '8px 0 0 0', fontSize: '0.95em' });
+
+                const courseLabel = courseName || `Course ${courseId}`;
+                const subject = encodeURIComponent('Canvas Course Access Request');
+                const body = encodeURIComponent(
+                    `Hello CETI,\n\n` +
+                    `I am requesting access to the following concluded Canvas course:\n\n` +
+                    `Course: ${courseLabel}\n` +
+                    `URL: ${window.location.href}\n\n` +
+                    `Please let me know if you need any additional information.\n\n` +
+                    `Thank you`
+                );
+                const mailtoHref = `mailto:${CETI_EMAIL}?subject=${subject}&body=${body}`;
+
+                concludedMsg.appendChild(document.createTextNode(
+                    'This course appears to be concluded. If you need access to work in it, you can '
+                ));
+                const concludedLink = document.createElement('a');
+                concludedLink.href = mailtoHref;
+                concludedLink.textContent = 'email CETI';
+                concludedMsg.appendChild(concludedLink);
+                concludedMsg.appendChild(document.createTextNode(' to request that it be made available.'));
+                buttonContainer.appendChild(concludedMsg);
+            }
         } else {
             msg.textContent =
                 'This script was built for Northern Kentucky University and some features ' +
                 'may not work as intended on other Canvas instances. It requires specific ' +
                 'Canvas admin permissions that your account does not appear to have. Role IDs ' +
                 'and other NKU-specific values will likely differ on your instance.';
+            buttonContainer.appendChild(msg);
         }
 
-        buttonContainer.appendChild(msg);
         insertButtonContainer();
     }
 
