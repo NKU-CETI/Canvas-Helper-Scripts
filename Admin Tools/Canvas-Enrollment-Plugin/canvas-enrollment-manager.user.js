@@ -228,10 +228,15 @@
         Object.assign(msg.style, { margin: '0', fontSize: '0.95em' });
 
         if (NKU_DOMAINS.includes(domain)) {
-            msg.innerHTML =
+            msg.appendChild(document.createTextNode(
                 'This script requires account admin permissions in Canvas and will not ' +
-                'work for your account. If you think you would have a use for it, please ' +
-                'email <a href="mailto:ceti@nku.edu">ceti@nku.edu</a> to inquire about access.';
+                'work for your account. If you think you would have a use for it, please email '
+            ));
+            const adminLink = document.createElement('a');
+            adminLink.href = `mailto:${CETI_EMAIL}`;
+            adminLink.textContent = CETI_EMAIL.toLowerCase();
+            msg.appendChild(adminLink);
+            msg.appendChild(document.createTextNode(' to inquire about access.'));
             buttonContainer.appendChild(msg);
 
             if (isConcluded) {
@@ -250,9 +255,14 @@
                 );
                 const mailtoHref = `mailto:${CETI_EMAIL}?subject=${subject}&body=${body}`;
 
-                concludedMsg.innerHTML =
-                    'This course appears to be concluded. If you need access to work in it, ' +
-                    `you can <a href="${mailtoHref}">email CETI</a> to request that it be made available.`;
+                concludedMsg.appendChild(document.createTextNode(
+                    'This course appears to be concluded. If you need access to work in it, you can '
+                ));
+                const concludedLink = document.createElement('a');
+                concludedLink.href = mailtoHref;
+                concludedLink.textContent = 'email CETI';
+                concludedMsg.appendChild(concludedLink);
+                concludedMsg.appendChild(document.createTextNode(' to request that it be made available.'));
                 buttonContainer.appendChild(concludedMsg);
             }
         } else {
