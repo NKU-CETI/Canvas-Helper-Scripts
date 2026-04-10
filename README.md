@@ -27,7 +27,17 @@ A collection of Tampermonkey userscripts and utilities for Canvas LMS administra
 
 ### Browser extension (Chrome / Edge)
 
-An alternative to the userscripts — no Tampermonkey required. See [Browser Extension](./Browser%20Extension) for details and full install instructions.
+An alternative to the userscripts — no Tampermonkey required.
+
+1. **[Download the repository as a ZIP](https://github.com/NKU-CETI/Canvas-Helper-Scripts/archive/refs/heads/main.zip)** and extract it (or clone with Git).
+2. Open **`chrome://extensions`** (Chrome) or **`edge://extensions`** (Edge).
+3. Enable **Developer mode** (toggle in the top-right corner).
+4. Click **Load unpacked** and select the `Browser Extension/NKU-Canvas-Toolkit` folder.
+5. Navigate to any NKU Canvas course page (`nku.instructure.com/courses/...`) to use it.
+
+> **Note:** Chrome/Edge will show a "Developer mode extensions" banner — this is normal for sideloaded extensions.
+
+See [Browser Extension](./Browser%20Extension) for Firefox instructions, role requirements, and update guidance.
 
 ---
 
