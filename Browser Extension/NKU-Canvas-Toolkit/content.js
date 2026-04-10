@@ -29,13 +29,18 @@
     const ENROLL_HELPDESK_ADMIN_ROLE_ID = 178; // Account-level "Enroll Help Desk" role — grants Helpdesk Toolkit access
     const CETI_EMAIL = 'CETI@nku.edu';
     const CANVAS_STATUS_URL = 'https://status.instructure.com/api/v2/summary.json';
+    const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main';
     // Version check fetches this extension's manifest.json from GitHub to compare versions.
-    const UPDATE_CHECK_URL = 'https://raw.githubusercontent.com/NKU-CETI/Canvas-Helper-Scripts/main/Browser%20Extension/NKU-Canvas-Toolkit/manifest.json';
+    // The path must be URL-encoded because the directory name contains a space.
+    const UPDATE_CHECK_URL = `${GITHUB_RAW_BASE}/Browser%20Extension/NKU-Canvas-Toolkit/manifest.json`;
     const VERSION_TOOLTIP_BASE = `NKU Canvas Toolkit v${SCRIPT_VERSION}\nCombined admin and helpdesk tools for NKU Canvas.\nMade for Northern Kentucky University.`;
     const VERSION_CHECK_CACHE_KEY = 'nku_toolkit_version_check';
     const VERSION_CHECK_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
     const COLLAPSED_STORAGE_KEY = 'nku_toolkit_collapsed';
     const HEALTH_COLLAPSED_STORAGE_KEY = 'nku_toolkit_health_collapsed';
+    const MS_PER_MINUTE = 60000;
+    const MS_PER_HOUR = 3600000;
+    const MS_PER_DAY = 86400000;
     // Canvas status page components to monitor; others are excluded to avoid
     // showing alerts for services NKU does not use.
     const RELEVANT_COMPONENTS = new Set([
@@ -1557,10 +1562,10 @@
         const diffMs = date.getTime() - Date.now();
         const absMs = Math.abs(diffMs);
         const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
-        if (absMs < 60000) return 'Last run: just now';
-        if (absMs < 3600000) return `Last run: ${rtf.format(Math.round(diffMs / 60000), 'minute')}`;
-        if (absMs < 86400000) return `Last run: ${rtf.format(Math.round(diffMs / 3600000), 'hour')}`;
-        return `Last run: ${rtf.format(Math.round(diffMs / 86400000), 'day')}`;
+        if (absMs < MS_PER_MINUTE) return 'Last run: just now';
+        if (absMs < MS_PER_HOUR) return `Last run: ${rtf.format(Math.round(diffMs / MS_PER_MINUTE), 'minute')}`;
+        if (absMs < MS_PER_DAY) return `Last run: ${rtf.format(Math.round(diffMs / MS_PER_HOUR), 'hour')}`;
+        return `Last run: ${rtf.format(Math.round(diffMs / MS_PER_DAY), 'day')}`;
     }
 
     function appendLastRunLine(statusDiv) {
@@ -1582,7 +1587,7 @@
             const updatedTs = getLinkValidatorLastRun();
             const updatedText = formatRelativeTime(updatedTs);
             if (updatedText) lastRunLineEl.textContent = updatedText;
-        }, 60000);
+        }, MS_PER_MINUTE);
     }
 
     function displayLinkValidatorResults(btn, statusDiv, data, saveTimestamp = false) {
