@@ -2,19 +2,22 @@
 // Combines Canvas Enrollment Manager (Admin Toolkit) and Canvas Module Diagnostics (Helpdesk Toolkit).
 //
 // Role-gated access:
-//   CETI account role (ID 19)            → Admin Toolkit   (enroll as Designer + course health checks)
+//   AccountAdmin (role ID 1)               → both sections (full Canvas account admin)
+//   CETI account role (ID 19)              → Admin Toolkit   (enroll as Designer + course health checks)
 //   Enroll Help Desk account role (ID 178) → Helpdesk Toolkit (enroll as Helpdesk + module diagnostics)
-//   Both roles present                    → both sections visible in a single panel
+//   Multiple roles present                 → all entitled sections visible in a single panel
+//
+// Section visibility can also be toggled per-user via the extension popup (toolbar icon).
 //
 // Author: NKU CETI
-// Version: 1.0
+// Version: 1.1
 
 (function () {
     'use strict';
 
     // ─── Constants ────────────────────────────────────────────────────────────
 
-    const SCRIPT_VERSION = '1.0';
+    const SCRIPT_VERSION = '1.1';
     const DEBUG = false;
     const REQUEST_TIMEOUT_MS = 15000;
     const LINK_VALIDATOR_POLL_INTERVAL_MS = 4000;
@@ -22,6 +25,7 @@
     // This covers fast jobs that finish before the first poll can observe them in-progress.
     // 3 polls × 4 s = 12 s maximum wait before showing results.
     const LINK_VALIDATOR_GRACE_POLLS = 3;
+    const ACCOUNT_ADMIN_ROLE_ID = 1;  // Full Canvas account admin — grants access to both sections
     const DESIGNER_ROLE_ID = 6;    // NKU's Canvas role ID for the Designer enrollment role (DesignerEnrollment)
     const CETI_ADMIN_ROLE_ID = 19; // Account-level CETI role — grants Admin Toolkit access
     const HELPDESK_ROLE_ID = 177;  // Course enrollment role: "Helpdesk"
@@ -156,24 +160,32 @@
     // ─── Permission check ─────────────────────────────────────────────────────
 
     // Fetches the current user's account-admin entries for account 1 and checks
-    // for two roles in a single API call:
+    // for qualifying roles in a single API call:
+    //   ACCOUNT_ADMIN_ROLE_ID (1)            → full account admin — grants access to both sections
     //   CETI_ADMIN_ROLE_ID (19)              → show Admin Toolkit section
     //   ENROLL_HELPDESK_ADMIN_ROLE_ID (178)  → show Helpdesk Toolkit section
     // If neither role is found, the panel is not rendered (silent exit).
+    // User preferences (popup toggles) are layered on top: even if a role grants
+    // access, a section that has been disabled in the popup will not be shown.
     function checkPermissionsAndProceed() {
-        log('Checking account admin roles (CETI:', CETI_ADMIN_ROLE_ID, ', Enroll Help Desk:', ENROLL_HELPDESK_ADMIN_ROLE_ID, ')');
+        log('Checking account admin roles (AccountAdmin:', ACCOUNT_ADMIN_ROLE_ID,
+            ', CETI:', CETI_ADMIN_ROLE_ID, ', Enroll Help Desk:', ENROLL_HELPDESK_ADMIN_ROLE_ID, ')');
         const adminsUrl = `https://${domain}/api/v1/accounts/1/admins?user_id=${userId}&per_page=100`;
         fetchAllPagesRaw(adminsUrl, getCsrfToken(), [],
             (admins) => {
-                const hasCetiRole = admins.some(a => a.role_id === CETI_ADMIN_ROLE_ID);
-                const hasHelpdeskAdminRole = admins.some(a => a.role_id === ENROLL_HELPDESK_ADMIN_ROLE_ID);
+                const isAccountAdmin = admins.some(a => a.role_id === ACCOUNT_ADMIN_ROLE_ID);
+                // AccountAdmin inherits access to both sections.
+                const hasCetiRole = isAccountAdmin || admins.some(a => a.role_id === CETI_ADMIN_ROLE_ID);
+                const hasHelpdeskAdminRole = isAccountAdmin || admins.some(a => a.role_id === ENROLL_HELPDESK_ADMIN_ROLE_ID);
 
                 if (!hasCetiRole && !hasHelpdeskAdminRole) {
-                    log('User has neither CETI nor Enroll Help Desk account role, hiding panel');
+                    log('User has no qualifying account role, hiding panel');
                     return;
                 }
 
-                log('User has qualifying role(s) — hasCetiRole:', hasCetiRole, ', hasHelpdeskAdminRole:', hasHelpdeskAdminRole);
+                log('User has qualifying role(s) — hasCetiRole:', hasCetiRole,
+                    ', hasHelpdeskAdminRole:', hasHelpdeskAdminRole,
+                    ', isAccountAdmin:', isAccountAdmin);
 
                 // Fetch current course enrollments to determine enroll/unenroll button state.
                 const enrollUrl = `https://${domain}/api/v1/courses/${courseId}/enrollments?user_id=${userId}&per_page=100`;
@@ -185,12 +197,11 @@
                         const isHelpdeskEnrolled = hasHelpdeskAdminRole
                             ? enrollments.some(e => e.role_id === HELPDESK_ROLE_ID)
                             : null;
-                        initializePanel(hasCetiRole, isDesignerEnrolled, hasHelpdeskAdminRole, isHelpdeskEnrolled);
+                        applyPrefsAndInit(hasCetiRole, isDesignerEnrolled, hasHelpdeskAdminRole, isHelpdeskEnrolled);
                     },
                     (error) => {
                         log('Course enrollment check failed:', error);
-                        // Show the panel anyway — the enroll/unenroll action will surface any access issue.
-                        initializePanel(hasCetiRole, null, hasHelpdeskAdminRole, null);
+                        applyPrefsAndInit(hasCetiRole, null, hasHelpdeskAdminRole, null);
                     }
                 );
             },
@@ -199,6 +210,23 @@
                 // Silently exit — do not render a panel if the permission check fails.
             }
         );
+    }
+
+    // Reads the user's popup preferences from chrome.storage.sync and gates
+    // each section behind both the role flag and the user preference.
+    function applyPrefsAndInit(hasCetiRole, isDesignerEnrolled, hasHelpdeskAdminRole, isHelpdeskEnrolled) {
+        const defaults = { adminSectionEnabled: true, helpdeskSectionEnabled: true };
+        chrome.storage.sync.get(defaults, (prefs) => {
+            const showAdmin = hasCetiRole && prefs.adminSectionEnabled;
+            const showHelpdesk = hasHelpdeskAdminRole && prefs.helpdeskSectionEnabled;
+
+            if (!showAdmin && !showHelpdesk) {
+                log('All sections hidden (roles or popup preferences) — not rendering panel');
+                return;
+            }
+
+            initializePanel(showAdmin, isDesignerEnrolled, showHelpdesk, isHelpdeskEnrolled);
+        });
     }
 
     // ─── Panel initialization ─────────────────────────────────────────────────

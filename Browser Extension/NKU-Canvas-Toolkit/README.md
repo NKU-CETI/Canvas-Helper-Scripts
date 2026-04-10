@@ -8,10 +8,14 @@ A sideloadable Chrome/Edge/Firefox browser extension that combines the **Canvas 
 
 | Section | Visible to | Capabilities |
 |---|---|---|
-| **Admin Toolkit** | Users with the **CETI** account role (ID 19) | Enroll self as Designer, unenroll self, run link validator, check assignment due dates |
-| **Helpdesk Toolkit** | Users with the **Enroll Help Desk** account role (ID 178) | Enroll self as Helpdesk, unenroll self, scan module completion requirements, diagnose individual student completion issues |
+| **Admin Toolkit** | Users with the **CETI** account role (ID 19) or **Account Admin** (ID 1) | Enroll self as Designer, unenroll self, run link validator, check assignment due dates |
+| **Helpdesk Toolkit** | Users with the **Enroll Help Desk** account role (ID 178) or **Account Admin** (ID 1) | Enroll self as Helpdesk, unenroll self, scan module completion requirements, diagnose individual student completion issues |
 
-Users who hold **both** roles see both sections in the same panel.
+Users who hold multiple qualifying roles see all applicable sections in a single panel. Full **Account Admins** (role ID 1) always see both sections.
+
+### Popup settings
+
+Clicking the extension icon in the browser toolbar opens a settings popup where you can **enable or disable individual sections**. This is useful if you have access to both toolkits but only want one to appear on course pages. Changes take effect on the next page load. Settings are synced across your Chrome profile.
 
 ---
 
@@ -50,10 +54,11 @@ The version icon (ℹ️) in the panel header checks GitHub daily and changes to
 
 ## Role Requirements
 
-The extension silently exits for users who do not hold either qualifying account-level role. No panel is rendered.
+The extension silently exits for users who do not hold any qualifying account-level role. No panel is rendered.
 
-| Role | ID | Type | Panel section unlocked |
+| Role | ID | Type | Panel section(s) unlocked |
 |---|---|---|---|
+| Account Admin | 1 | AccountMembership | Admin Toolkit **and** Helpdesk Toolkit |
 | CETI | 19 | AccountMembership | Admin Toolkit |
 | Enroll Help Desk | 178 | AccountMembership | Helpdesk Toolkit |
 
@@ -77,6 +82,7 @@ The extension only activates on the three NKU Canvas environments:
 
 | Version | Notes |
 |---|---|
+| 1.1 | Account Admins (role ID 1) now get access to both sections. Added toolbar popup to enable/disable each section individually. Popup settings are persisted via `chrome.storage.sync`. |
 | 1.0 | Initial browser extension release. Combines Canvas Enrollment Manager v1.12 and Canvas Module Diagnostics v1.5 into a single role-gated panel. Replaces `GM_xmlhttpRequest` with `fetch()`. |
 
 ---
@@ -86,9 +92,10 @@ The extension only activates on the three NKU Canvas environments:
 - **No build step required.** The extension is plain JavaScript (ES2020). Load the folder directly from `chrome://extensions`.
 - **API transport:** All Canvas API calls use `fetch()` with an `AbortController`-based timeout (replacing `GM_xmlhttpRequest` from the Tampermonkey versions). Cross-origin requests to `status.instructure.com` and `raw.githubusercontent.com` are permitted via `host_permissions` in `manifest.json`.
 - **CSRF token:** Read from `document.cookie` (`_csrf_token`) and sent as the `X-CSRF-Token` request header on all mutating requests, matching the approach in the userscript versions.
+- **Popup:** `popup.html` + `popup.js` implement the toolbar popup. Settings are stored in `chrome.storage.sync` (key names `adminSectionEnabled`, `helpdeskSectionEnabled`). The content script reads these via `chrome.storage.sync.get()` before rendering any section.
 - **Heading hierarchy:** The panel uses `h3` → `h4` → `h5` to maintain WCAG 2.1 AA heading structure.
 - **Version bump:** Increment `"version"` in `manifest.json` **and** `SCRIPT_VERSION` in `content.js` together for every release.
-- **Permissions:** The manifest requests only the minimum necessary host permissions. No `tabs`, `cookies`, `storage`, or background service worker permissions are used.
+- **Permissions:** `"storage"` is the only browser API permission declared. Host permissions cover the three NKU domains, `status.instructure.com`, and `raw.githubusercontent.com`. No background service worker is used.
 
 ---
 
