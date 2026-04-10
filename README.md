@@ -11,18 +11,23 @@ A collection of Tampermonkey userscripts and utilities for Canvas LMS administra
 
 | Folder | Description |
 |---|---|
-| [Admin Tools](./Admin%20Tools) | Plugins for Canvas admins and instructional designers — enrollment management, link validation, and more |
-| [Helpdesk Tools](./Helpdesk%20Tools) | Tools for helpdesk staff — module completion diagnostics, student issue lookup, and a Canvas theme for role-specific UI enhancements |
+| [Admin Tools](./Admin%20Tools) | Tampermonkey userscripts for Canvas admins and instructional designers — enrollment management, link validation, and more |
+| [Helpdesk Tools](./Helpdesk%20Tools) | Tampermonkey userscripts for helpdesk staff — module completion diagnostics, student issue lookup, and a Canvas theme for role-specific UI enhancements |
+| [Browser Extension](./Browser%20Extension) | Sideloadable Chrome/Edge extension that combines the Admin and Helpdesk toolkits in one role-gated panel — no Tampermonkey required |
 
 ---
 
 ## Quick Start
 
-All scripts are Tampermonkey userscripts.
+### Tampermonkey userscripts
 
 1. Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension.
-2. Browse to the folder for the tool you want (see the table above).
+2. Browse to **Admin Tools** or **Helpdesk Tools** for the script you want.
 3. Follow the installation instructions in that folder's README.
+
+### Browser extension (Chrome / Edge)
+
+An alternative to the userscripts — no Tampermonkey required. See [Browser Extension](./Browser%20Extension) for details and full install instructions.
 
 ---
 
