@@ -1150,12 +1150,13 @@
             err('Cannot show message — panel container not in DOM');
             return;
         }
+        const normalizedType = type === 'error' ? 'danger' : type;
         const div = document.createElement('div');
-        div.className = `alert alert-${type}`;
+        div.className = `alert alert-${normalizedType}`;
         div.textContent = message;
         div.style.marginBottom = '10px';
         div.tabIndex = -1;
-        if (type === 'danger' || type === 'error') {
+        if (normalizedType === 'danger') {
             div.setAttribute('role', 'alert');
             div.setAttribute('aria-live', 'assertive');
         } else {
