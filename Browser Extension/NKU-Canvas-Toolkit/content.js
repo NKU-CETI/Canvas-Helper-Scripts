@@ -1231,9 +1231,12 @@
                     }
                     successCallback(parsed);
                 } else {
-                    const text = await response.text().catch(() => '');
-                    err(`Request failed ${response.status}:`, text);
-                    errorCallback(`HTTP ${response.status}`, text);
+                    await response.text().catch(() => '');
+                    const requestId = response.headers.get('X-Request-Id') || response.headers.get('x-request-id') || '';
+                    const requestIdSuffix = requestId ? ` [request id: ${requestId}]` : '';
+                    const errorMessage = `HTTP ${response.status} for ${method} ${url}${requestIdSuffix}`;
+                    err(errorMessage);
+                    errorCallback(errorMessage, '');
                 }
             })
             .catch((e) => {
