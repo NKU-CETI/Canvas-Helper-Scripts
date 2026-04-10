@@ -1,0 +1,24 @@
+{
+    "manifest_version": 3,
+    "name": "NKU Canvas Toolkit",
+    "version": "1.0",
+    "description": "Combined admin and helpdesk tools for NKU Canvas LMS — Northern Kentucky University",
+    "content_scripts": [
+        {
+            "matches": [
+                "https://nku.instructure.com/courses/*",
+                "https://nku.beta.instructure.com/courses/*",
+                "https://nku.test.instructure.com/courses/*"
+            ],
+            "js": ["content.js"],
+            "run_at": "document_idle"
+        }
+    ],
+    "host_permissions": [
+        "https://nku.instructure.com/*",
+        "https://nku.beta.instructure.com/*",
+        "https://nku.test.instructure.com/*",
+        "https://status.instructure.com/*",
+        "https://raw.githubusercontent.com/*"
+    ]
+}
